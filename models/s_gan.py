@@ -21,11 +21,6 @@ class SGAN(BaseModel):
                 shape=[None, 784]
             )
 
-        self.real = tf.placeholder(
-                dtype=tf.float32,
-                shape=[None]
-            )
-
     def create_embedding(self):
 
         with tf.variable_scope("embedding"):
@@ -102,3 +97,23 @@ class SGAN(BaseModel):
         self.gen_cost = self.generator_cost(disc_image_gen)
         self.disc_cost = self.discriminator_cost(disc_image_gen, disc_image_target)
 
+        self.build_gradient_steps()
+
+    def build_gradient_steps(self):
+
+        tvars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+
+        disc_grads = tf.gradients(-self.disc_cost, tvars)
+        gen_grads = tf.gradients(self.gen_cost, tvars)
+
+        optimizer = tf.train.AdamOptimizer(
+                learning_rate=self.config.learning_rate
+            )
+
+        clipped_disc_grads, _ = tf.clip_by_global_norm(disc_grads, self.config.max_grad)
+        clipped_gen_grads, _ = tf.clip_by_global_norm(gen_grads, self.config.max_grad)
+
+        self.disc_grad_step = optimizer.apply_gradients(zip(clipped_disc_grads, tvars))
+        self.gen_grad_step = optimizer.apply_gradients(zip(clipped_gen_grads, tvars))
+
+        

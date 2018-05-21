@@ -24,29 +24,30 @@ class MNIST(BaseData):
 		self.data_eval = mnist.test.images # Returns np.array
 		self.labels_eval = convert_to_one_hot(np.asarray(mnist.test.labels, dtype=np.int32), (0, 9))
 
-	def next_batch(self, dataMode):
+	def next_batch(self):
+
+		if self.iter_train > self.data_train.shape[0]:
+			self.iter_train = 0
+			return None
 
 		batch = {}
 
-		if dataMode == DataMode.TRAIN:
+		batch["images"] = self.data_train[self.iter_train : self.iter_train + self.config.batch_size]
+		batch["labels"] = self.labels_train[self.iter_train : self.iter_train + self.config.batch_size]
 
-			batch["images"] = self.data_train[self.iter_train : self.iter_train + self.config.batch_size]
-			batch["labels"] = self.labels_train[self.iter_train : self.iter_train + self.config.batch_size]
-
-			self.iter_train += self.config.batch_size
-			if self.iter_train > self.data_train.shape[0]:
-				self.iter_train = 0
-
-		elif dataMode == DataMode.TEST:
-
-			batch["images"] = self.data_eval[self.iter_eval : self.iter_eval + self.config.batch_size]
-			batch["labels"] = self.labels_eval[self.iter_eval : self.iter_eval + self.config.batch_size]
-
-			self.iter_eval += self.config.batch_size
-			if self.iter_eval > self.data_eval.shape[0]:
-				self.iter_eval = 0
+		self.iter_train += self.config.batch_size
 
 		return batch
 
+	def random_batch(self):
 
+		batch = {}
+
+		n_data = self.data_train.shape[0]
+		choices = np.random.randint(0, n_data, [self.config.batch_size])
+
+		batch["images"] = self.data_train[choices]
+		batch["labels"] = self.labels_train[choices]
+
+		return batch
 		

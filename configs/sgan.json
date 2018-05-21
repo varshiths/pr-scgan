@@ -3,6 +3,8 @@
   "batch_size": 6,
 
   "learning_rate": 0.001,
+  "disc_ascents": 5,
+  "max_grad": 5,
   
   "embedding": 150,
   "internal_state": 400,
