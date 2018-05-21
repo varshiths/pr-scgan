@@ -1,0 +1,6 @@
+{
+  "num_epochs": 10,
+  "batch_size": 6,
+  "learning_rate": 0.001,
+  "state_size": [784]
+}
