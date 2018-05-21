@@ -30,6 +30,8 @@ def main(argv):
 	# create model
 	sgan = SGAN(config)
 
+	sgan.build_model()
+
 	# test or train
 	if FLAGS.mode == "train":
 		pass
