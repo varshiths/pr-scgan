@@ -1,14 +1,13 @@
 import tensorflow as tf
 from .base_model import BaseModel
 
-epsilon = tf.constant(1e-8)
-
 
 class SGAN(BaseModel):
 
     def init_saver(self):
         # just copy the following line in your child class
         self.saver = tf.train.Saver(max_to_keep=self.config.max_to_keep)
+        self.epsilon = tf.constant(1e-8)
 
     def create_placeholders(self):
 
@@ -73,14 +72,14 @@ class SGAN(BaseModel):
 
     def generator_cost(self, prob_image_gen):
 
-        logt = tf.log( 1 - prob_image_gen + epsilon )
+        logt = tf.log( 1 - prob_image_gen + self.epsilon )
         cost = tf.reduce_mean(logt)
         return cost
 
     def discriminator_cost(self, prob_image_gen, prob_image_target):
 
-        logtg = tf.log( 1 - prob_image_gen + epsilon )
-        logtt = tf.log( prob_image_target + epsilon )
+        logtg = tf.log( 1 - prob_image_gen + self.epsilon )
+        logtt = tf.log( prob_image_target + self.epsilon )
 
         cost = tf.reduce_mean( logtt + logtg )
         return cost

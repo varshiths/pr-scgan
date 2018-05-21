@@ -1,7 +1,15 @@
 {
   "num_epochs": 10,
   "batch_size": 6,
+
   "learning_rate": 0.001,
+  
   "embedding": 150,
-  "internal_state": 400
+  "internal_state": 400,
+
+  "checkpoint_dir": "save/sgan/",
+
+  "max_to_keep": 5,
+  
+  "dummy":0
 }
