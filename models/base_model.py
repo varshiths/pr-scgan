@@ -10,15 +10,18 @@ class BaseModel:
         # init the epoch counter
         self.init_cur_epoch()
 
+        self.build_model()
+        self.init_saver()
+
     # save function that saves the checkpoint in the path defined in the config file
     def save(self, sess, model):
-        print("Saving model...")
-        self.saver.save(sess, os.path.join(self.config.checkpoint_dir, model), self.global_step_tensor)
+        print("Saving model {} ...".format(os.path.join(self.config.checkpoint_dir, model)))
+        self.saver.save(sess, os.path.join(self.config.checkpoint_dir, model))
         print("Model saved")
 
     # load latest checkpoint from the experiment path defined in the config file
     def load(self, sess, model):
-        print("Loading model checkpoint {} ...\n".format(os.path.join(self.config.checkpoint_dir, model)))
+        print("Loading model {} ...".format(os.path.join(self.config.checkpoint_dir, model)))
         self.saver.restore(sess, os.path.join(self.config.checkpoint_dir, model))
         print("Model loaded")
 
@@ -36,8 +39,7 @@ class BaseModel:
 
     def init_saver(self):
         # just copy the following line in your child class
-        # self.saver = tf.train.Saver(max_to_keep=self.config.max_to_keep)
-        raise NotImplementedError
+        self.saver = tf.train.Saver()
 
     def build_model(self):
         raise NotImplementedError

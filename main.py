@@ -8,9 +8,13 @@ from models import SGAN, SGANTrain
 from utils.config import process_config
 from data import DataMode, MNIST
 
+import numpy as np
+
 
 flags = tf.flags
 logging = tf.logging
+
+flags.DEFINE_integer("seed", None, "seed to ensure reproducibility")
 
 flags.DEFINE_string("config", None, "config file for hyper-parameters")
 flags.DEFINE_string("dataset", "mnist", "dataset used for the model")
@@ -30,21 +34,28 @@ def main(argv):
 		data = MNIST(config)
 
 	with tf.Graph().as_default():
+
+		if FLAGS.seed is not None:
+			tf.set_random_seed(FLAGS.seed)
+			np.random.seed(FLAGS.seed)
+
 		# create model
 		sgan = SGAN(config)
-		sgan.init_saver()
-		sgan.build_model()
 
 		with tf.Session() as session:
+
 			session.run(tf.global_variables_initializer())
 
 			if FLAGS.model is not None:
-				sgan.load(session, FLAGS.model)
+				sgan.load(session, FLAGS.model)	
 
 			if FLAGS.mode == "train":
 				sgan_train = SGANTrain(session, sgan, data, config, None)
 
-				sgan_train.train()
+				try:
+					sgan_train.train()
+				except KeyboardInterrupt as e:
+					pass
 
 				if FLAGS.save is not None:
 					sgan.save(session, FLAGS.save)

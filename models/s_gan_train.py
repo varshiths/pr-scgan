@@ -1,5 +1,8 @@
 import tensorflow as tf
 from .base_train import BaseTrain
+import pprint
+
+pp = pprint.PrettyPrinter()
 
 
 class SGANTrain(BaseTrain):
@@ -7,27 +10,64 @@ class SGANTrain(BaseTrain):
     def train(self):
         for cur_epoch in range(self.model.cur_epoch_tensor.eval(self.sess), self.config.num_epochs + 1, 1):
 
+            print("Epoch:", cur_epoch)
+
+            # print("\tAscent")
             for k in range(self.config.disc_ascents):
 
                 batch = self.data.random_batch()
 
-                feed = {}
-                feed[self.model.image.name] = batch["images"]
-                feed[self.model.label.name] = batch["labels"]
+                fetches = {
+                    "train_step" : self.model.disc_grad_step,
+                    "disc_cost" : self.model.disc_cost,
+                    "gen_cost" : self.model.gen_cost,
+                }
 
-                self.sess.run(self.model.disc_grad_step, feed)
+                feed = {
+                    self.model.image.name : batch["images"],
+                    self.model.label.name : batch["labels"],
+                }
 
+                fetched = self.sess.run(fetches, feed)
+
+                # pp.pprint(fetched)
+
+            # print("\tDescent")
             batch = self.data.next_batch()
             while batch is not None:
 
-                feed = {}
-                feed[self.model.image.name] = batch["images"]
-                feed[self.model.label.name] = batch["labels"]
+                fetches = {
+                    "train_step" : self.model.disc_grad_step,
+                    "disc_cost" : self.model.disc_cost,
+                    "gen_cost" : self.model.gen_cost,
+                }
 
-                batch = self.data.random_batch()
-                self.sess.run(self.model.gen_grad_step, feed)
+                feed = {
+                    self.model.image.name : batch["images"],
+                    self.model.label.name : batch["labels"],
+                }
+
+                fetched = self.sess.run(fetches, feed)
+
+                # pp.pprint(fetched)
 
                 batch = self.data.next_batch()
+
+            # estimate validation accuracy
+            batch = self.data.validation_set()
+
+            fetches = {
+                "recons_error" : self.model.reconstruction_error
+            }
+
+            feed = {
+                self.model.image.name : batch["images"],
+                self.model.label.name : batch["labels"],
+            }
+
+            fetched = self.sess.run(fetches, feed)
+
+            pp.pprint(fetched)
 
             self.sess.run(self.model.increment_cur_epoch_tensor)
 

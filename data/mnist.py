@@ -50,4 +50,13 @@ class MNIST(BaseData):
 		batch["labels"] = self.labels_train[choices]
 
 		return batch
+
+	def validation_set(self):
+
+		batch = {}
+
+		batch["images"] = self.data_eval
+		batch["labels"] = self.labels_eval
+
+		return batch
 		

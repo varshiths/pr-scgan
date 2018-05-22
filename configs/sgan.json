@@ -1,11 +1,14 @@
 {
-  "num_epochs": 10,
-  "batch_size": 6,
+  "num_epochs": 100000,
+  "batch_size": 1024,
 
-  "learning_rate": 0.001,
-  "disc_ascents": 5,
+  "learning_rate": 0.0001,
+  "disc_ascents": 10,
   "max_grad": 5,
   
+  "input_size": 10,
+  "output_size": 784,
+
   "embedding": 150,
   "internal_state": 400,
 
