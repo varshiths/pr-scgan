@@ -1,9 +1,10 @@
 {
   "num_epochs": 100000,
-  "batch_size": 512,
+  "batch_size": 2048,
 
-  "learning_rate": 0.0001,
-  "disc_ascents": 1,
+  "learning_rate": 0.001,
+  "disc_ascents": 3,
+  "gen_descents": 5,
   "max_grad": 5,
   
   "input_size": 784,

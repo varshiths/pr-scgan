@@ -12,7 +12,6 @@ class SGANTrain(BaseTrain):
 
             print("Epoch:", cur_epoch)
 
-            print("\tAscent")
             for k in range(self.config.disc_ascents):
 
                 batch = self.data.random_batch()
@@ -30,62 +29,47 @@ class SGANTrain(BaseTrain):
 
                 fetched = self.sess.run(fetches, feed)
 
-                # print("Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
+                if k == 0:
+                    print("^ Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
 
-            print("\tDescent")
-            # # batch = self.data.next_batch()
-            # while batch is not None:
+            for k in range(self.config.gen_descents):
 
-            #     fetches = {
-            #         "train_step" : self.model.gen_grad_step,
-            #         "disc_cost" : self.model.disc_cost,
-            #         "gen_cost" : self.model.gen_cost,
-            #     }
+                batch = self.data.random_batch()
 
-            #     feed = {
-            #         self.model.image.name : batch["images"],
-            #         self.model.label.name : batch["labels"],
-            #     }
+                fetches = {
+                    "train_step" : self.model.gen_grad_step,
+                    "disc_cost" : self.model.disc_cost,
+                    "gen_cost" : self.model.gen_cost,
+                }
 
-            #     fetched = self.sess.run(fetches, feed)
+                feed = {
+                    self.model.image.name : batch["images"],
+                    self.model.label.name : batch["labels"],
+                }
 
-            #     print("Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
-                
-            #     batch = self.data.next_batch()
+                fetched = self.sess.run(fetches, feed)
 
-            batch = self.data.random_batch()
-
-            fetches = {
-                "train_step" : self.model.gen_grad_step,
-                "disc_cost" : self.model.disc_cost,
-                "gen_cost" : self.model.gen_cost,
-            }
-
-            feed = {
-                self.model.image.name : batch["images"],
-                self.model.label.name : batch["labels"],
-            }
-
-            fetched = self.sess.run(fetches, feed)
-
-            print("Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
-
+                if k == 0:
+                    print(". Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
 
             # estimate validation accuracy
-            batch = self.data.validation_set()
+            self.estimate_val_accur()
 
-            fetches = {
-                "recons_error" : self.model.validation_error
-            }
+    def estimate_val_accur(self):
+        batch = self.data.validation_set()
 
-            feed = {
-                self.model.image.name : batch["images"],
-                self.model.label.name : batch["labels"],
-            }
+        fetches = {
+            "recons_error" : self.model.validation_error
+        }
 
-            fetched = self.sess.run(fetches, feed)
+        feed = {
+            self.model.image.name : batch["images"],
+            self.model.label.name : batch["labels"],
+        }
 
-            pp.pprint(fetched)
+        fetched = self.sess.run(fetches, feed)
+
+        pp.pprint(fetched)
 
     def train_epoch(self):
         """

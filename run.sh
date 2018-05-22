@@ -1,7 +1,7 @@
 python3 main.py \
-	--architecture ff \
+	--architecture sgan \
 	--seed 100 \
-	--config configs/ff.json \
+	--config configs/sgan.json \
 	--mode train \
-	--model two \
-	--save three \
+	--model extren \
+	--save extren \

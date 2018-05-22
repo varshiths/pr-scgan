@@ -36,6 +36,8 @@ def main(argv):
 
 	with tf.Graph().as_default():
 
+		tf.device("/device:GPU:0")
+
 		if FLAGS.seed is not None:
 			tf.set_random_seed(FLAGS.seed)
 			np.random.seed(FLAGS.seed)
@@ -51,7 +53,7 @@ def main(argv):
 			if FLAGS.model is None:
 				session.run(tf.global_variables_initializer())
 			else:
-				model.load(session, FLAGS.model, True)
+				model.load(session, FLAGS.model)
 
 			if FLAGS.mode == "train":
 				if FLAGS.architecture == "ff":
@@ -65,7 +67,7 @@ def main(argv):
 					pass
 
 				if FLAGS.save is not None:
-					model.save(session, FLAGS.save, True)
+					model.save(session, FLAGS.save)
 
 
 if __name__ == '__main__':
