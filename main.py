@@ -4,7 +4,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from models import SGAN, SGANTrain
+from models import SGAN, SGANTrain, FF, FFTrain
 from utils.config import process_config
 from data import DataMode, MNIST
 
@@ -15,6 +15,7 @@ flags = tf.flags
 logging = tf.logging
 
 flags.DEFINE_integer("seed", None, "seed to ensure reproducibility")
+flags.DEFINE_string("architecture", None, "architecture to use")
 
 flags.DEFINE_string("config", None, "config file for hyper-parameters")
 flags.DEFINE_string("dataset", "mnist", "dataset used for the model")
@@ -40,25 +41,31 @@ def main(argv):
 			np.random.seed(FLAGS.seed)
 
 		# create model
-		sgan = SGAN(config)
+		if FLAGS.architecture == "ff":
+			model = FF(config)
+		else:
+			model = SGAN(config)
 
 		with tf.Session() as session:
 
-			session.run(tf.global_variables_initializer())
-
-			if FLAGS.model is not None:
-				sgan.load(session, FLAGS.model)	
+			if FLAGS.model is None:
+				session.run(tf.global_variables_initializer())
+			else:
+				model.load(session, FLAGS.model, True)
 
 			if FLAGS.mode == "train":
-				sgan_train = SGANTrain(session, sgan, data, config, None)
+				if FLAGS.architecture == "ff":
+					model_train = FFTrain(session, model, data, config, None)
+				else:
+					model_train = SGANTrain(session, model, data, config, None)
 
 				try:
-					sgan_train.train()
+					model_train.train()
 				except KeyboardInterrupt as e:
 					pass
 
 				if FLAGS.save is not None:
-					sgan.save(session, FLAGS.save)
+					model.save(session, FLAGS.save, True)
 
 
 if __name__ == '__main__':

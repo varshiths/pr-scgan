@@ -51,6 +51,15 @@ class MNIST(BaseData):
 
 		return batch
 
+	def training_set(self):
+
+		batch = {}
+
+		batch["images"] = self.data_train
+		batch["labels"] = self.labels_train
+
+		return batch
+
 	def validation_set(self):
 
 		batch = {}

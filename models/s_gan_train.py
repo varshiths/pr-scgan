@@ -8,11 +8,11 @@ pp = pprint.PrettyPrinter()
 class SGANTrain(BaseTrain):
 
     def train(self):
-        for cur_epoch in range(self.model.cur_epoch_tensor.eval(self.sess), self.config.num_epochs + 1, 1):
+        for cur_epoch in range(0, self.config.num_epochs + 1, 1):
 
             print("Epoch:", cur_epoch)
 
-            # print("\tAscent")
+            print("\tAscent")
             for k in range(self.config.disc_ascents):
 
                 batch = self.data.random_batch()
@@ -30,34 +30,52 @@ class SGANTrain(BaseTrain):
 
                 fetched = self.sess.run(fetches, feed)
 
-                # pp.pprint(fetched)
+                # print("Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
 
-            # print("\tDescent")
-            batch = self.data.next_batch()
-            while batch is not None:
+            print("\tDescent")
+            # # batch = self.data.next_batch()
+            # while batch is not None:
 
-                fetches = {
-                    "train_step" : self.model.disc_grad_step,
-                    "disc_cost" : self.model.disc_cost,
-                    "gen_cost" : self.model.gen_cost,
-                }
+            #     fetches = {
+            #         "train_step" : self.model.gen_grad_step,
+            #         "disc_cost" : self.model.disc_cost,
+            #         "gen_cost" : self.model.gen_cost,
+            #     }
 
-                feed = {
-                    self.model.image.name : batch["images"],
-                    self.model.label.name : batch["labels"],
-                }
+            #     feed = {
+            #         self.model.image.name : batch["images"],
+            #         self.model.label.name : batch["labels"],
+            #     }
 
-                fetched = self.sess.run(fetches, feed)
+            #     fetched = self.sess.run(fetches, feed)
 
-                # pp.pprint(fetched)
+            #     print("Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
+                
+            #     batch = self.data.next_batch()
 
-                batch = self.data.next_batch()
+            batch = self.data.random_batch()
+
+            fetches = {
+                "train_step" : self.model.gen_grad_step,
+                "disc_cost" : self.model.disc_cost,
+                "gen_cost" : self.model.gen_cost,
+            }
+
+            feed = {
+                self.model.image.name : batch["images"],
+                self.model.label.name : batch["labels"],
+            }
+
+            fetched = self.sess.run(fetches, feed)
+
+            print("Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
+
 
             # estimate validation accuracy
             batch = self.data.validation_set()
 
             fetches = {
-                "recons_error" : self.model.reconstruction_error
+                "recons_error" : self.model.validation_error
             }
 
             feed = {
@@ -68,8 +86,6 @@ class SGANTrain(BaseTrain):
             fetched = self.sess.run(fetches, feed)
 
             pp.pprint(fetched)
-
-            self.sess.run(self.model.increment_cur_epoch_tensor)
 
     def train_epoch(self):
         """

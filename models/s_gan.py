@@ -22,7 +22,7 @@ class SGAN(BaseModel):
     def create_embedding(self, inp):
 
         with tf.variable_scope("embedding", reuse=tf.AUTO_REUSE):
-            w = tf.get_variable("weight", [10, self.config.embedding])
+            w = tf.get_variable("weight", [self.config.input_size, self.config.embedding])
             b = tf.get_variable("bias", [self.config.embedding])
 
             embed = tf.nn.sigmoid(tf.matmul( inp, w ) + b)
@@ -42,17 +42,17 @@ class SGAN(BaseModel):
     def generator_network(self, state):
 
         with tf.variable_scope("generator", reuse=tf.AUTO_REUSE):
-            w = tf.get_variable("weight", [self.config.internal_state, 784])
-            b = tf.get_variable("bias", [784])
+            w = tf.get_variable("weight", [self.config.internal_state, self.config.output_size])
+            b = tf.get_variable("bias", [self.config.output_size])
 
-            image = tf.nn.sigmoid( tf.matmul(state, w) + b )
+            image = tf.nn.softmax( tf.matmul(state, w) + b )
 
         return image
 
     def discriminator_network(self, image):
 
         with tf.variable_scope("discriminator", reuse=tf.AUTO_REUSE):
-            w = tf.get_variable("weight", [784, 1])
+            w = tf.get_variable("weight", [self.config.output_size, 1])
             b = tf.get_variable("bias", [1])
 
             prob = tf.nn.sigmoid( tf.matmul(image, w) + b )
@@ -78,16 +78,16 @@ class SGAN(BaseModel):
         self.epsilon = tf.constant(1e-8)
         self.create_placeholders()
 
-        in_embed = self.create_embedding(self.label)
+        in_embed = self.create_embedding(self.image)
         internal_state = self.inference_network(in_embed)
 
-        image_gen = self.image_gen = self.generator_network(internal_state)
+        out_gen = self.out_gen = self.generator_network(internal_state)
 
-        disc_image_gen = self.disc_image_gen = self.discriminator_network(image_gen)
-        disc_image_target = self.disc_image_target = self.discriminator_network(self.image)
+        disc_out_gen = self.disc_out_gen = self.discriminator_network(out_gen)
+        disc_out_target = self.disc_out_target = self.discriminator_network(self.label)
 
-        self.gen_cost = self.generator_cost(disc_image_gen)
-        self.disc_cost = self.discriminator_cost(disc_image_gen, disc_image_target)
+        self.gen_cost = self.generator_cost(disc_out_gen)
+        self.disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target)
 
         self.build_gradient_steps()
 
@@ -118,5 +118,6 @@ class SGAN(BaseModel):
 
     def build_validation_metrics(self):
 
-        self.reconstruction_error = tf.sqrt( tf.reduce_mean( tf.square(self.image_gen - self.image) ) )
+        eq_bools = tf.equal(tf.argmax(self.out_gen,1), tf.argmax(self.label,1))
+        self.validation_error = 100.0 * tf.reduce_mean( tf.cast(eq_bools, dtype=tf.float32) )
 
