@@ -22,7 +22,7 @@ class SGAN(BaseModel):
     def generator_network(self, state):
 
         with tf.variable_scope("generator", reuse=tf.AUTO_REUSE):
-            w = tf.get_variable("weight", [self.config.internal_state, self.config.output_size])
+            w = tf.get_variable("weight", [self.config.input_size, self.config.output_size])
             b = tf.get_variable("bias", [self.config.output_size])
 
             out = tf.nn.softmax( tf.matmul(state, w) + b )

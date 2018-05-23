@@ -4,7 +4,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from models import SGAN, SGANTrain, FF, FFTrain
+from models import SGAN, SGANTrain, FF, FFTrain, SGANConv
 from utils.config import process_config
 from data import DataMode, MNIST
 
@@ -45,8 +45,10 @@ def main(argv):
 		# create model
 		if FLAGS.architecture == "ff":
 			model = FF(config)
-		else:
+		elif FLAGS.architecture == "sgan":
 			model = SGAN(config)
+		elif FLAGS.architecture == "sganconv":
+			model = SGANConv(config)
 
 		with tf.Session() as session:
 

@@ -1,0 +1,18 @@
+{
+  "num_epochs": 100000,
+  "batch_size": 2048,
+
+  "learning_rate": 0.001,
+  "disc_ascents": 10,
+  "gen_descents": 2,
+  "max_grad": 5,
+  
+  "input_size": 784,
+  "output_size": 10,
+
+  "checkpoint_dir": "save/sganconv/",
+
+  "max_to_keep": 5,
+  
+  "dummy":0
+}

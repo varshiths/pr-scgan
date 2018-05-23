@@ -1,7 +1,7 @@
 python3 main.py \
-	--architecture sgan \
+	--architecture sganconv \
 	--seed 100 \
-	--config configs/sgan.json \
+	--config configs/sganconv.json \
 	--mode train \
 	--save extren \
 	# --model extren \
