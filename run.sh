@@ -3,5 +3,5 @@ python3 main.py \
 	--seed 100 \
 	--config configs/sgan.json \
 	--mode train \
-	--model extren \
 	--save extren \
+	# --model extren \

@@ -3,8 +3,8 @@
   "batch_size": 2048,
 
   "learning_rate": 0.001,
-  "disc_ascents": 3,
-  "gen_descents": 5,
+  "disc_ascents": 10,
+  "gen_descents": 2,
   "max_grad": 5,
   
   "input_size": 784,
