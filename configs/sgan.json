@@ -10,9 +10,6 @@
   "input_size": 784,
   "output_size": 10,
 
-  "embedding": 400,
-  "internal_state": 100,
-
   "checkpoint_dir": "save/sgan/",
 
   "max_to_keep": 5,

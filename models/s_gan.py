@@ -19,43 +19,23 @@ class SGAN(BaseModel):
                 shape=[None, 784]
             )
 
-    def create_embedding(self, inp):
-
-        with tf.variable_scope("embedding", reuse=tf.AUTO_REUSE):
-            w = tf.get_variable("weight", [self.config.input_size, self.config.embedding])
-            b = tf.get_variable("bias", [self.config.embedding])
-
-            embed = tf.nn.sigmoid(tf.matmul( inp, w ) + b)
-
-        return embed
-
-    def inference_network(self, inp):
-
-        with tf.variable_scope("tins", reuse=tf.AUTO_REUSE):
-            w = tf.get_variable("weight", [self.config.embedding, self.config.internal_state])
-            b = tf.get_variable("bias", [self.config.internal_state])
-
-            output = tf.nn.sigmoid( tf.matmul( inp, w ) + b )
-        
-        return output
-
     def generator_network(self, state):
 
         with tf.variable_scope("generator", reuse=tf.AUTO_REUSE):
             w = tf.get_variable("weight", [self.config.internal_state, self.config.output_size])
             b = tf.get_variable("bias", [self.config.output_size])
 
-            image = tf.nn.softmax( tf.matmul(state, w) + b )
+            out = tf.nn.softmax( tf.matmul(state, w) + b )
 
-        return image
+        return out
 
-    def discriminator_network(self, image):
+    def discriminator_network(self, inp):
 
         with tf.variable_scope("discriminator", reuse=tf.AUTO_REUSE):
             w = tf.get_variable("weight", [self.config.output_size + self.config.input_size, 1])
             b = tf.get_variable("bias", [1])
 
-            prob = tf.nn.sigmoid( tf.matmul(image, w) + b )
+            prob = tf.nn.sigmoid( tf.matmul(inp, w) + b )
 
         return prob
 
@@ -78,10 +58,7 @@ class SGAN(BaseModel):
         self.epsilon = tf.constant(1e-8)
         self.create_placeholders()
 
-        in_embed = self.create_embedding(self.image)
-        internal_state = self.inference_network(in_embed)
-
-        out_gen = self.out_gen = self.generator_network(internal_state)
+        out_gen = self.out_gen = self.generator_network(self.image)
 
         disc_in_gen = tf.concat([self.image, out_gen], axis=1)
         disc_in_target = tf.concat([self.image, self.label], axis=1)
@@ -98,13 +75,11 @@ class SGAN(BaseModel):
 
     def build_gradient_steps(self):
 
-        emb_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="embedding")
-        tins_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="tins")
         gen_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator")
         disc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
 
-        gen_grad_vars = emb_vars + tins_vars + gen_vars
-        disc_grad_vars = emb_vars + tins_vars + gen_vars + disc_vars
+        gen_grad_vars = gen_vars
+        disc_grad_vars = gen_vars + disc_vars
 
         gen_grads = self.gen_grads = tf.gradients(self.gen_cost, gen_grad_vars)
         disc_grads = self.disc_grads = tf.gradients(self.disc_cost, disc_grad_vars)
