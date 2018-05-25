@@ -29,10 +29,12 @@ class SGAN(BaseModel):
 
         return out
 
-    def discriminator_network(self, inp):
+    def discriminator_network(self, x, y):
 
         with tf.variable_scope("discriminator", reuse=tf.AUTO_REUSE):
-            w = tf.get_variable("weight", [self.config.output_size + self.config.input_size, 1])
+            inp = tf.concat( [x, y], axis=1 )
+
+            w = tf.get_variable("weight", [self.config.input_size + self.config.output_size, 1])
             b = tf.get_variable("bias", [1])
 
             prob = tf.nn.sigmoid( tf.matmul(inp, w) + b )
@@ -60,11 +62,8 @@ class SGAN(BaseModel):
 
         out_gen = self.out_gen = self.generator_network(self.image)
 
-        disc_in_gen = tf.concat([self.image, out_gen], axis=1)
-        disc_in_target = tf.concat([self.image, self.label], axis=1)
-
-        disc_out_gen = self.disc_out_gen = self.discriminator_network(disc_in_gen)
-        disc_out_target = self.disc_out_target = self.discriminator_network(disc_in_target)
+        disc_out_gen = self.disc_out_gen = self.discriminator_network(self.image, out_gen)
+        disc_out_target = self.disc_out_target = self.discriminator_network(self.image, self.label)
 
         self.gen_cost = self.generator_cost(disc_out_gen)
         self.disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target)

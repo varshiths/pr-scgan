@@ -29,8 +29,7 @@ class SGANTrain(BaseTrain):
 
                 fetched = self.sess.run(fetches, feed)
 
-                if k == 0:
-                    print("^ Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
+                print("^ Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
 
             for k in range(self.config.gen_descents):
 
@@ -49,8 +48,7 @@ class SGANTrain(BaseTrain):
 
                 fetched = self.sess.run(fetches, feed)
 
-                if k == 0:
-                    print(". Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
+                print(". Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
 
             # estimate validation accuracy
             self.estimate_val_accur()
