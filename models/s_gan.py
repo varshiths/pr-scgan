@@ -78,7 +78,7 @@ class SGAN(BaseModel):
         disc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
 
         gen_grad_vars = gen_vars
-        disc_grad_vars = gen_vars + disc_vars
+        disc_grad_vars = disc_vars
 
         gen_grads = self.gen_grads = tf.gradients(self.gen_cost, gen_grad_vars)
         disc_grads = self.disc_grads = tf.gradients(self.disc_cost, disc_grad_vars)
