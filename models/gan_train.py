@@ -34,13 +34,9 @@ class GANTrain(BaseTrain):
 
                 fetches = {
                     "train_step" : self.model.gen_grad_step,
-                    "disc_cost" : self.model.disc_cost,
-                    "gen_cost" : self.model.gen_cost,
                 }
 
-                fetched = self.sess.run(fetches, feed)
-
-                print(". Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
+                fetched = self.sess.run(fetches)
 
     def train_epoch(self):
         """
