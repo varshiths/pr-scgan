@@ -6,7 +6,7 @@ from __future__ import print_function
 import tensorflow as tf
 from models import GAN, GANTrain, SGAN, SGANTrain, FF, FFTrain, SGANConv, SeqGAN, GANTrainPreTrain
 from utils.config import process_config
-from data import DataMode, MNIST
+from data import DataMode, MNIST, JSL
 
 import numpy as np
 
@@ -18,7 +18,7 @@ flags.DEFINE_integer("seed", None, "seed to ensure reproducibility")
 flags.DEFINE_string("architecture", None, "architecture to use")
 
 flags.DEFINE_string("config", None, "config file for hyper-parameters")
-flags.DEFINE_string("dataset", "mnist", "dataset used for the model")
+flags.DEFINE_string("dataset", None, "dataset used for the model")
 flags.DEFINE_string("mode", "test", "flag whether to train or test")
 flags.DEFINE_string("model", None, "loading saved model")
 flags.DEFINE_string("save", None, "name of the model to save")
@@ -33,6 +33,8 @@ def main(argv):
 
 	if FLAGS.dataset == "mnist":
 		data = MNIST(config)
+	elif FLAGS.dataset == "jsl":
+		data = JSL(config)
 
 	with tf.Graph().as_default():
 

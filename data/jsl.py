@@ -4,21 +4,27 @@ from .base_data import DataMode
 from .base_data import BaseData
 
 
-class MNIST(BaseData):
+class JSL(BaseData):
 	"""MNIST dataset"""
 	def __init__(self, config):
-		super(MNIST, self).__init__(config)
+		super(JSL, self).__init__(config)
 		self.iter_train = 0
-		self.iter_eval = 0
 
 		# download/load if not already present
-		mnist = input_data.read_data_sets("MNIST_data/")
+		
 
-		self.data_train = mnist.train.images # Returns np.array
-		self.labels_train = convert_to_one_hot(np.asarray(mnist.train.labels, dtype=np.int32), (0, 9))
+		# generate for now
+		self.data_train = np.random.randn(
+			self.config.batch_size, 
+			self.config.time_steps,
+			self.config.sequence_width
+			)
 
-		self.data_eval = mnist.test.images # Returns np.array
-		self.labels_eval = convert_to_one_hot(np.asarray(mnist.test.labels, dtype=np.int32), (0, 9))
+		self.labels_train = np.random.randn(
+			self.config.batch_size
+			)
+
+		# process data
 
 	def next_batch(self):
 
@@ -28,7 +34,7 @@ class MNIST(BaseData):
 
 		batch = {}
 
-		batch["images"] = self.data_train[self.iter_train : self.iter_train + self.config.batch_size]
+		batch["data"] = self.data_train[self.iter_train : self.iter_train + self.config.batch_size]
 		batch["labels"] = self.labels_train[self.iter_train : self.iter_train + self.config.batch_size]
 
 		self.iter_train += self.config.batch_size
@@ -42,7 +48,7 @@ class MNIST(BaseData):
 		n_data = self.data_train.shape[0]
 		choices = np.random.randint(0, n_data, [self.config.batch_size])
 
-		batch["images"] = self.data_train[choices]
+		batch["data"] = self.data_train[choices]
 		batch["labels"] = self.labels_train[choices]
 
 		return batch
@@ -51,7 +57,7 @@ class MNIST(BaseData):
 
 		batch = {}
 
-		batch["images"] = self.data_train
+		batch["data"] = self.data_train
 		batch["labels"] = self.labels_train
 
 		return batch
@@ -60,7 +66,7 @@ class MNIST(BaseData):
 
 		batch = {}
 
-		batch["images"] = self.data_eval
+		batch["data"] = self.data_eval
 		batch["labels"] = self.labels_eval
 
 		return batch
