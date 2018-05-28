@@ -10,4 +10,4 @@ from .feed_forward_train import *
 from .s_gan_conv import *
 
 from .seq_gan import *
-from .seq_gan_train import *
+from .gan_train_pretrain import *

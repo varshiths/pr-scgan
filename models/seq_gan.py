@@ -11,7 +11,8 @@ class SeqGAN(BaseModel):
 
     def create_placeholders(self):
 
-        self.sequence = tf.placeholder(
+        # sequence
+        self.data = tf.placeholder(
                 dtype=tf.float32,
                 shape=[None, self.config.time_steps, self.config.sequence_width]
             )
@@ -151,7 +152,7 @@ class SeqGAN(BaseModel):
         out_gen = self.out_gen = self.generator_network(latent_state)
 
         disc_out_gen = self.disc_out_gen = self.discriminator_network(out_gen)
-        disc_out_target = self.disc_out_target = self.discriminator_network(self.sequence)
+        disc_out_target = self.disc_out_target = self.discriminator_network(self.data)
 
         self.gen_cost = self.generator_cost(disc_out_gen)
         self.disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target)
