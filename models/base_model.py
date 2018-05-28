@@ -5,6 +5,9 @@ from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoi
 
 class BaseModel:
     def __init__(self, config):
+
+        print("Building model ...")
+
         self.config = config
         # init the global step
         self.init_global_step()

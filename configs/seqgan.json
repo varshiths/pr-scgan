@@ -1,10 +1,10 @@
 {
   "num_epochs": 100000,
-  "batch_size": 256,
+  "batch_size": 16,
 
-  "time_steps": 20,
+  "time_steps": 900,
 
-  "sequence_width": 64,
+  "sequence_width": 642,
   
   "latent_state_size": 10,
   "embedding_latent": 20,
@@ -23,8 +23,9 @@
   "gen_descents": 1,
   "max_grad": 5,
 
-  "checkpoint_dir": "save/seqgan/",
+  "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
 
+  "checkpoint_dir": "save/seqgan/",
   "max_to_keep": 5,
   
   "dummy":0
