@@ -23,7 +23,7 @@ class GANTrain(BaseTrain):
                 }
 
                 feed = {
-                    self.model.image.name : batch["images"],
+                    self.model.image.name : batch["data"],
                 }
 
                 fetched = self.sess.run(fetches, feed)

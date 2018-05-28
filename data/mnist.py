@@ -32,7 +32,7 @@ class MNIST(BaseData):
 
 		batch = {}
 
-		batch["images"] = self.data_train[self.iter_train : self.iter_train + self.config.batch_size]
+		batch["data"] = self.data_train[self.iter_train : self.iter_train + self.config.batch_size]
 		batch["labels"] = self.labels_train[self.iter_train : self.iter_train + self.config.batch_size]
 
 		self.iter_train += self.config.batch_size
@@ -46,7 +46,7 @@ class MNIST(BaseData):
 		n_data = self.data_train.shape[0]
 		choices = np.random.randint(0, n_data, [self.config.batch_size])
 
-		batch["images"] = self.data_train[choices]
+		batch["data"] = self.data_train[choices]
 		batch["labels"] = self.labels_train[choices]
 
 		return batch
@@ -55,7 +55,7 @@ class MNIST(BaseData):
 
 		batch = {}
 
-		batch["images"] = self.data_train
+		batch["data"] = self.data_train
 		batch["labels"] = self.labels_train
 
 		return batch
@@ -64,7 +64,7 @@ class MNIST(BaseData):
 
 		batch = {}
 
-		batch["images"] = self.data_eval
+		batch["data"] = self.data_eval
 		batch["labels"] = self.labels_eval
 
 		return batch
