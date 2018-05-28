@@ -16,17 +16,36 @@ class SeqGAN(BaseModel):
                 shape=[None, self.config.time_steps, self.config.sequence_width]
             )
 
-    def rnn_unit_gen(self):
+    def cnn_unit(params):
+
+        def get_variable(filt_dim, scope):
+            return tf.get_variable(scope + "/filter", filt_dim)
+
+        def function(inp):
+            out = inp
+            for i, (filt_dim, dilations) in enumerate(params):
+                out = tf.nn.conv2d(
+                    out, 
+                    get_variable(filt_dim, "conv%d" % (i)), 
+                    strides=[1,1,1,1], 
+                    dilations=dilations,
+                    padding="SAME"
+                    )
+            return out
+
+        return function
+
+    def rnn_unit(num_units, num_layers, keep_prob):
 
         def rnn_cell():
             return tf.contrib.rnn.DropoutWrapper(
-            tf.contrib.rnn.BasicLSTMCell(num_units=self.config.lstm_units_gen),
-            output_keep_prob=self.config.keep_prob,
+            tf.contrib.rnn.BasicLSTMCell(num_units=num_units),
+            output_keep_prob=keep_prob,
             variational_recurrent=True,
             dtype=tf.float32
             )
 
-        return tf.contrib.rnn.MultiRNNCell([rnn_cell() for _ in range(self.config.lstm_layers_gen)])
+        return tf.contrib.rnn.MultiRNNCell([rnn_cell() for _ in range(num_layers)])
 
     def generator_network(self, state):
 
@@ -39,7 +58,11 @@ class SeqGAN(BaseModel):
                 embedding_latent = tf.nn.sigmoid( tf.matmul(state, w) + b )
 
             with tf.variable_scope("rnn", reuse=tf.AUTO_REUSE):
-                rnn_unit_gen = self.rnn_unit_gen()
+                rnn_unit_gen = SeqGAN.rnn_unit(
+                    self.config.lstm_units_gen, 
+                    self.config.lstm_layers_gen,
+                    self.config.keep_prob
+                    )
 
                 with tf.variable_scope("input_embedding"):
                     wi = tf.get_variable("weight", [self.config.sequence_width + self.config.embedding_latent, self.config.lstm_input_gen])
@@ -68,9 +91,37 @@ class SeqGAN(BaseModel):
     def discriminator_network(self, seq):
 
         with tf.variable_scope("discriminator", reuse=tf.AUTO_REUSE):
-            pass
 
-        return None
+            layers_params = [
+                ([5, 5, 1, 3], [1, 1, 1, 1]),
+                ([5, 5, 3, 5], [1, 1, 1, 1]),
+                ([5, 5, 5, 3], [1, 1, 1, 1]),
+                ([5, 5, 3, 1], [1, 1, 1, 1])
+            ]
+
+            cnn_unit_disc = SeqGAN.cnn_unit(layers_params)
+
+            seq = tf.reshape(seq, [-1, self.config.time_steps, self.config.sequence_width, 1])
+            out_cnn = cnn_unit_disc(seq)
+            
+            out_pool = tf.reshape(
+                tf.nn.avg_pool(
+                    out_cnn, 
+                    [1, self.config.time_steps, 1, 1],
+                    strides=[1,1,1,1],
+                    padding="VALID",
+                    ), 
+                [-1, self.config.sequence_width]
+                )
+            
+            with tf.variable_scope("prob_embed"):
+                w = tf.get_variable("weight", [self.config.sequence_width, 1])
+                b = tf.get_variable("bias", [1])
+
+                out = tf.nn.sigmoid( tf.matmul(out_pool, w) + b )
+                out = tf.reshape(out, [-1])
+
+        return out
 
     def generator_cost(self, prob_image_gen):
 
@@ -102,10 +153,10 @@ class SeqGAN(BaseModel):
         disc_out_gen = self.disc_out_gen = self.discriminator_network(out_gen)
         disc_out_target = self.disc_out_target = self.discriminator_network(self.sequence)
 
-        # self.gen_cost = self.generator_cost(disc_out_gen)
-        # self.disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target)
+        self.gen_cost = self.generator_cost(disc_out_gen)
+        self.disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target)
 
-        # self.build_gradient_steps()
+        self.build_gradient_steps()
 
         self.build_validation_metrics()
 

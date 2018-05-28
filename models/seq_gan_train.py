@@ -9,7 +9,8 @@ class SeqGANTrain(BaseTrain):
 
     def train(self):
         for cur_epoch in range(0, self.config.num_epochs + 1, 1):
-            print("Epoch:", cur_epoch)
+            pass
+            # print("Epoch:", cur_epoch)
 
     def train_epoch(self):
         """
