@@ -1,0 +1,31 @@
+{
+  "num_epochs": 100000,
+  "batch_size": 256,
+
+  "time_steps": 20,
+
+  "sequence_width": 64,
+  
+  "latent_state_size": 10,
+  "embedding_latent": 20,
+
+  "keep_prob" : 0.2,
+
+  "lstm_input_gen" : 100,
+  "lstm_units_gen" : 200,
+  "lstm_layers_gen" : 4,
+  
+  "lstm_units_disc" : 200,
+  "lstm_layers_disc" : 4,
+
+  "learning_rate": 0.001,
+  "disc_ascents": 5,
+  "gen_descents": 1,
+  "max_grad": 5,
+
+  "checkpoint_dir": "save/seqgan/",
+
+  "max_to_keep": 5,
+  
+  "dummy":0
+}

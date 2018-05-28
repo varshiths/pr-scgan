@@ -1,10 +1,10 @@
 {
   "num_epochs": 100000,
-  "batch_size": 2048,
+  "batch_size": 256,
 
   "learning_rate": 0.001,
   "disc_ascents": 5,
-  "gen_descents": 5,
+  "gen_descents": 1,
   "max_grad": 5,
   
   "latent_state_size": 10,

@@ -1,7 +1,7 @@
 python3 main.py \
-	--architecture gan \
+	--architecture seqgan \
 	--seed 0 \
-	--config configs/gan.json \
+	--config configs/seqgan.json \
 	--mode train \
-	--save extren \
-	# --model extren \
+	--save trial \
+	# --model pt1 \
