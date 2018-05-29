@@ -1,6 +1,5 @@
 import tensorflow as tf
 import numpy as np
-from .base_data import DataMode
 from .base_data import BaseData
 
 from .utils import *

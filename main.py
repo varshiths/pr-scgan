@@ -4,9 +4,9 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from models import GAN, GANTrain, SGAN, SGANTrain, FF, FFTrain, SGANConv, SeqGAN, GANTrainPreTrain
+from models import *
 from utils.config import process_config
-from data import DataMode, MNIST, JSL
+from data import MNIST, JSL
 
 import numpy as np
 
@@ -69,7 +69,7 @@ def main(argv):
 				elif FLAGS.architecture == "gan":
 					model_train = GANTrain(session, model, data, config, None)
 				elif FLAGS.architecture == "seqgan":
-					model_train = GANTrainPreTrain(session, model, data, config, None)
+					model_train = GANTrain(session, model, data, config, None)
 				else:
 					model_train = SGANTrain(session, model, data, config, None)
 

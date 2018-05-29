@@ -9,7 +9,7 @@ class GAN(BaseModel):
 
     def create_placeholders(self):
 
-        self.image = tf.placeholder(
+        self.data = tf.placeholder(
                 dtype=tf.float32,
                 shape=[None, 784]
             )
@@ -64,7 +64,7 @@ class GAN(BaseModel):
         out_gen = self.out_gen = self.generator_network(latent_state)
 
         disc_out_gen = self.disc_out_gen = self.discriminator_network(out_gen)
-        disc_out_target = self.disc_out_target = self.discriminator_network(self.image)
+        disc_out_target = self.disc_out_target = self.discriminator_network(self.data)
 
         self.gen_cost = self.generator_cost(disc_out_gen)
         self.disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target)

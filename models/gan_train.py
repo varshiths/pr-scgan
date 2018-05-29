@@ -8,6 +8,9 @@ pp = pprint.PrettyPrinter()
 class GANTrain(BaseTrain):
 
     def train(self):
+
+        self.pre_train()
+
         for cur_epoch in range(0, self.config.num_epochs + 1, 1):
 
             print("Epoch:", cur_epoch)
@@ -37,6 +40,11 @@ class GANTrain(BaseTrain):
                 }
 
                 fetched = self.sess.run(fetches)
+
+    def pre_train(self):
+
+        print("Pre-Trainer")
+        pass
 
     def train_epoch(self):
         """

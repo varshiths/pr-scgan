@@ -1,8 +1,8 @@
 python3 main.py \
-	--dataset jsl \
+	--dataset mnist \
 	--seed 0 \
-	--config configs/seqgan.json \
-	--architecture seqgan \
+	--config configs/gan.json \
+	--architecture gan \
 	--mode train \
-	# --save trial \
+	--save trial \
 	# --model pt1 \
