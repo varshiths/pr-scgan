@@ -6,6 +6,7 @@ from __future__ import print_function
 import tensorflow as tf
 from models import *
 from utils.config import process_config
+from utils.tests import *
 from data import MNIST, JSL
 
 import numpy as np
@@ -70,7 +71,7 @@ def main(argv):
 					model_train = GANTrain(session, model, data, config, None)
 				elif FLAGS.architecture == "seqgan":
 					model_train = GANTrain(session, model, data, config, None)
-				else:
+				elif FLAGS.architecture[:4] == "sgan":
 					model_train = SGANTrain(session, model, data, config, None)
 
 				try:
@@ -80,6 +81,9 @@ def main(argv):
 
 				if FLAGS.save is not None:
 					model.save(session, FLAGS.save)
+			elif FLAGS.mode[:4] == "test":
+				if FLAGS.architecture == "gan" and FLAGS.dataset == "mnist":
+					run_model_and_plot_image(session, model, data, config)
 
 
 if __name__ == '__main__':

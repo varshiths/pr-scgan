@@ -40,9 +40,13 @@ class BaseModel:
                 )
             print("---------------------------------------------------")
 
-        self.saver = tf.train.import_meta_graph( model_path + '.meta' )
-        self.saver.restore(sess, model_path)
-        print("Model loaded")
+        try:
+            self.saver = tf.train.import_meta_graph( model_path + '.meta' )
+            self.saver.restore(sess, model_path)
+            print("Model loaded")
+        except Exception as e:
+            print("File not found ... Random initialization ...")
+            sess.run(tf.global_variables_initializer())
 
     # just initialize a tensorflow variable to use it as global step counter
     def init_global_step(self):

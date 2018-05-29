@@ -17,11 +17,19 @@ class MNIST(BaseData):
 		# download/load if not already present
 		mnist = input_data.read_data_sets("MNIST_data/")
 
-		self.data_train = mnist.train.images # Returns np.array
+		data_train = mnist.train.images # Returns np.array
+		self.data_train_min = np.min(data_train)
+		self.data_train_max = np.max(data_train)
+		self.data_train = ((data_train - self.data_train_min)/(self.data_train_max - self.data_train_min))*2 - 1
+		# self.data_train = data_train
+
 		self.labels_train = convert_to_one_hot(np.asarray(mnist.train.labels, dtype=np.int32), (0, 9))
 
 		self.data_eval = mnist.test.images # Returns np.array
 		self.labels_eval = convert_to_one_hot(np.asarray(mnist.test.labels, dtype=np.int32), (0, 9))
+
+	def denormalise(self, data):
+		return ((data+1)/2)*(self.data_train_max-self.data_train_min) + self.data_train_min
 
 	def next_batch(self):
 

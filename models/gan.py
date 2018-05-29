@@ -14,13 +14,23 @@ class GAN(BaseModel):
                 shape=[None, 784]
             )
 
+        self.latent = tf.placeholder(
+                dtype=tf.float32,
+                shape=[None, self.config.latent_state_size]
+            )
+
     def generator_network(self, state):
 
         with tf.variable_scope("generator", reuse=tf.AUTO_REUSE):
-            w = tf.get_variable("weight", [self.config.latent_state_size, self.config.output_size])
-            b = tf.get_variable("bias", [self.config.output_size])
+            w0 = tf.get_variable("weight0", [self.config.latent_state_size, self.config.mid_dim])
+            b0 = tf.get_variable("bias0", [self.config.mid_dim])
 
-            out = tf.nn.sigmoid( tf.matmul(state, w) + b )
+            out = tf.nn.leaky_relu( tf.matmul(state, w0) + b0 )
+
+            w1 = tf.get_variable("weight1", [self.config.mid_dim, self.config.output_size])
+            b1 = tf.get_variable("bias1", [self.config.output_size])
+
+            out = tf.nn.tanh( tf.matmul(out, w1) + b1 )
 
         return out
 
@@ -29,12 +39,17 @@ class GAN(BaseModel):
         with tf.variable_scope("discriminator", reuse=tf.AUTO_REUSE):
             inp = x
 
-            w = tf.get_variable("weight", [self.config.output_size, 1])
-            b = tf.get_variable("bias", [1])
+            w0 = tf.get_variable("weight0", [self.config.output_size, self.config.mid_dim])
+            b0 = tf.get_variable("bias0", [self.config.mid_dim])
 
-            prob = tf.nn.sigmoid( tf.matmul(inp, w) + b )
+            out = tf.nn.leaky_relu( tf.matmul(inp, w0) + b0 )
 
-        return prob
+            w1 = tf.get_variable("weight1", [self.config.mid_dim, 1])
+            b1 = tf.get_variable("bias1", [1])
+
+            out = tf.nn.sigmoid( tf.matmul(out, w1) + b1 )
+
+        return out
 
     def generator_cost(self, prob_image_gen):
 
@@ -55,13 +70,7 @@ class GAN(BaseModel):
         self.epsilon = tf.constant(1e-8)
         self.create_placeholders()
 
-        latent_state = tf.random_uniform(
-            [self.config.batch_size, self.config.latent_state_size],
-            minval=0,
-            maxval=1,
-        )
-
-        out_gen = self.out_gen = self.generator_network(latent_state)
+        out_gen = self.out_gen = self.generator_network(self.latent)
 
         disc_out_gen = self.disc_out_gen = self.discriminator_network(out_gen)
         disc_out_target = self.disc_out_target = self.discriminator_network(self.data)

@@ -1,13 +1,14 @@
 {
-  "num_epochs": 100000,
-  "batch_size": 256,
+  "num_epochs": 100000000,
+  "batch_size": 1024,
 
   "learning_rate": 0.001,
-  "disc_ascents": 5,
+  "disc_ascents": 1,
   "gen_descents": 1,
-  "max_grad": 5,
+  "max_grad": 10,
   
-  "latent_state_size": 10,
+  "latent_state_size": 100,
+  "mid_dim": 300,
   "output_size": 784,
 
   "checkpoint_dir": "save/gan/",
