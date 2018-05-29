@@ -1,6 +1,7 @@
 import tensorflow as tf
 import os
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
+import json
 
 
 class BaseModel:
@@ -23,6 +24,9 @@ class BaseModel:
         print("Saving model {} ...".format(model_path))
         self.saver.save(sess, model_path)
         print("Model saved")
+        with open(model_path + ".params", "w") as f:
+            json.dump(self.config, f)
+        print("Params saved")
 
     # load latest checkpoint from the experiment path defined in the config file
     def load(self, sess, model, verbose=False):
