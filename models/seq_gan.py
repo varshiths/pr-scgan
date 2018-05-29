@@ -2,22 +2,24 @@ import tensorflow as tf
 from .base_model import BaseModel
 import pprint
 
-import pdb
-
 pp = pprint.PrettyPrinter()
 
 
 class SeqGAN(BaseModel):
 
     def create_placeholders(self):
-
         # sequence
         self.data = tf.placeholder(
                 dtype=tf.float32,
                 shape=[None, self.config.time_steps, self.config.sequence_width]
             )
 
-    def cnn_unit(params):
+        self.latent = tf.placeholder(
+                dtype=tf.float32,
+                shape=[None, self.config.latent_state_size]
+            )
+
+    def cnn_unit(params, activation=None, padding="SAME"):
 
         def get_variable(filt_dim, scope):
             return tf.get_variable(scope + "/filter", filt_dim)
@@ -30,8 +32,10 @@ class SeqGAN(BaseModel):
                     get_variable(filt_dim, "conv%d" % (i)), 
                     strides=[1,1,1,1], 
                     dilations=dilations,
-                    padding="SAME"
+                    padding=padding
                     )
+                if activation is not None:
+                    out = tf.nn.leaky_relu(out)
             return out
 
         return function
@@ -56,7 +60,7 @@ class SeqGAN(BaseModel):
                 w = tf.get_variable("weight", [self.config.latent_state_size, self.config.embedding_latent])
                 b = tf.get_variable("bias", [self.config.embedding_latent])
 
-                embedding_latent = tf.nn.sigmoid( tf.matmul(state, w) + b )
+                embedding_latent = tf.nn.leaky_relu( tf.matmul(state, w) + b )
 
             with tf.variable_scope("rnn", reuse=tf.AUTO_REUSE):
                 rnn_unit_gen = SeqGAN.rnn_unit(
@@ -78,11 +82,11 @@ class SeqGAN(BaseModel):
                 rnn_out = tf.zeros([self.config.batch_size, self.config.sequence_width])
                 for _ in range(self.config.time_steps):
                     rnn_in = tf.concat([embedding_latent, rnn_out], axis=1)
-                    rnn_in = tf.tanh(tf.matmul(rnn_in, wi) + bi)
+                    rnn_in = tf.nn.leaky_relu(tf.matmul(rnn_in, wi) + bi)
 
                     rnn_out, rnn_state = rnn_unit_gen(rnn_in, rnn_state)
                     
-                    rnn_out = tf.tanh(tf.matmul(rnn_out, wo) + bo)
+                    rnn_out = tf.nn.tanh(tf.matmul(rnn_out, wo) + bo)
                     outputs.append(rnn_out)
 
                 outputs = tf.stack(outputs, axis=1)
@@ -100,7 +104,7 @@ class SeqGAN(BaseModel):
                 ([5, 5, 3, 1], [1, 1, 1, 1])
             ]
 
-            cnn_unit_disc = SeqGAN.cnn_unit(layers_params)
+            cnn_unit_disc = SeqGAN.cnn_unit(layers_params, "leaky_relu", "SAME")
 
             seq = tf.reshape(seq, [-1, self.config.time_steps, self.config.sequence_width, 1])
             out_cnn = cnn_unit_disc(seq)
@@ -143,13 +147,7 @@ class SeqGAN(BaseModel):
         self.epsilon = tf.constant(1e-8)
         self.create_placeholders()
 
-        latent_state = tf.random_uniform(
-            [self.config.batch_size, self.config.latent_state_size],
-            minval=0,
-            maxval=1,
-        )
-
-        out_gen = self.out_gen = self.generator_network(latent_state)
+        out_gen = self.out_gen = self.generator_network(self.latent)
 
         disc_out_gen = self.disc_out_gen = self.discriminator_network(out_gen)
         disc_out_target = self.disc_out_target = self.discriminator_network(self.data)

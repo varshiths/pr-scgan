@@ -1,8 +1,8 @@
 time python3 main.py \
-	--dataset mnist \
-	--config configs/gan.json \
-	--architecture gan \
-	--mode test \
-	--model normal_lrelu3 \
-	--save normal_lrelu3 \
-	# --seed 1000 \
+	--seed 0 \
+	--dataset jsl \
+	--config configs/seqgan.json \
+	--architecture seqgan \
+	--mode train \
+	--model trial \
+	--save trial \

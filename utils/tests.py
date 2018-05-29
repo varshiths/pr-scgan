@@ -23,15 +23,15 @@ def run_model_and_plot_image(sess, model, data, config):
 	samples = np.random.randn(25, config.latent_state_size)
 	image = run_with_feed(sess, model, data, samples)
 
-	# print("Plotting Samples")
-	# # fig=plt.figure(1, figsize=(28, 28))
-	# columns = 5
-	# rows = 5
-	# for i in range(1, columns*rows +1):
-	#     img = image[i-1,:,:]
-	#     # fig.add_subplot(rows, columns, i)
-	#     plt.imshow(img, cmap="gray")
-	#     plt.colorbar()
+	print("Plotting Samples")
+	fig=plt.figure(1, figsize=(28, 28))
+	columns = 5
+	rows = 5
+	for i in range(1, columns*rows +1):
+	    img = image[i-1,:,:]
+	    fig.add_subplot(rows, columns, i)
+	    plt.imshow(img, cmap="gray")
+	    plt.colorbar()
 
 	point1 = np.random.randn(config.latent_state_size)
 	point2 = np.random.randn(config.latent_state_size)

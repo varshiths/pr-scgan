@@ -11,7 +11,7 @@ class JSL(BaseData):
 		super(JSL, self).__init__(config)
 		self.iter_train = 0
 
-		print("Loading data ...")
+		print("Loading data...")
 		# download/load if not already present
 		data_train = load_jsl_from_folder(self.config.data_dir, self.config.time_steps)
 

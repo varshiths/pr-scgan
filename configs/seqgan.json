@@ -1,27 +1,27 @@
 {
-  "num_epochs": 100000,
-  "batch_size": 16,
+  "num_epochs": 10000,
+  "batch_size": 32,
 
   "time_steps": 900,
 
   "sequence_width": 642,
   
-  "latent_state_size": 10,
-  "embedding_latent": 20,
+  "latent_state_size": 1000,
+  "embedding_latent": 2000,
 
   "keep_prob" : 0.2,
 
-  "lstm_input_gen" : 100,
-  "lstm_units_gen" : 200,
-  "lstm_layers_gen" : 4,
+  "lstm_input_gen" : 1000,
+  "lstm_units_gen" : 1000,
+  "lstm_layers_gen" : 3,
   
-  "lstm_units_disc" : 200,
-  "lstm_layers_disc" : 4,
+  "lstm_units_disc" : 1000,
+  "lstm_layers_disc" : 3,
 
   "learning_rate": 0.001,
-  "disc_ascents": 5,
+  "disc_ascents": 1,
   "gen_descents": 1,
-  "max_grad": 5,
+  "max_grad": 10,
 
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
 
