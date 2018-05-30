@@ -19,11 +19,14 @@ class JSL(BaseData):
 		# process data
 		print(data_train.shape)
 
-		self.data_train_mean = np.mean(data_train, (0,1))
-		self.data_train_std = np.std(data_train, (0,1))
-		data_train = (data_train - self.data_train_mean) / (self.data_train_std)
+		self.data_train_min = np.min(data_train, (0,1))
+		self.data_train_max = np.max(data_train, (0,1))
+		data_train = ((data_train - self.data_train_min)/(self.data_train_max - self.data_train_min))*2 - 1
 
 		self.data_train = data_train
+		
+	def denormalise(self, data):
+		return ((data+1)/2)*(self.data_train_max-self.data_train_min) + self.data_train_min
 
 	def next_batch(self):
 

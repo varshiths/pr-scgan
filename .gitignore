@@ -105,3 +105,6 @@ ENV/
 
 # saved models directory
 save/
+
+# program profiles
+*.prof

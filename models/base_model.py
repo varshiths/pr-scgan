@@ -45,7 +45,7 @@ class BaseModel:
             print("---------------------------------------------------")
 
         try:
-            self.saver = tf.train.import_meta_graph( model_path + '.meta' )
+            # self.saver = tf.train.import_meta_graph( model_path + '.meta' )
             self.saver.restore(sess, model_path)
             print("Model loaded")
         except Exception as e:
@@ -63,4 +63,4 @@ class BaseModel:
         self.saver = tf.train.Saver()
 
     def build_model(self):
-        raise NotImplementedError
+        pass

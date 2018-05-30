@@ -3,6 +3,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import cProfile
+import pstats
+
 import tensorflow as tf
 from models import *
 from utils.config import process_config
@@ -20,7 +23,7 @@ flags.DEFINE_string("architecture", None, "architecture to use")
 
 flags.DEFINE_string("config", None, "config file for hyper-parameters")
 flags.DEFINE_string("dataset", None, "dataset used for the model")
-flags.DEFINE_string("mode", "test", "flag whether to train or test")
+flags.DEFINE_string("mode", "dummy", "flag whether to train or test")
 flags.DEFINE_string("model", None, "loading saved model")
 flags.DEFINE_string("save", None, "name of the model to save")
 
@@ -46,6 +49,7 @@ def main(argv):
 			np.random.seed(FLAGS.seed)
 
 		# create model
+		model = BaseModel(config)
 		if FLAGS.architecture == "ff":
 			model = FF(config)
 		elif FLAGS.architecture == "gan":
@@ -82,9 +86,18 @@ def main(argv):
 				if FLAGS.save is not None:
 					model.save(session, FLAGS.save)
 			elif FLAGS.mode[:4] == "test":
-				if FLAGS.architecture == "gan" and FLAGS.dataset == "mnist":
+				# MNIST GAN Samples, Linear and SLERP Interpolation
+				if FLAGS.mode == "test1":
 					run_model_and_plot_image(session, model, data, config)
+				# JSL GAN Samples
+				elif FLAGS.mode == "test2":
+					run_model_and_plot_gesture(session, model, data, config)
 
 
 if __name__ == '__main__':
-	tf.app.run()
+	cProfile.run("tf.app.run()", "/tmp/profdump")
+
+	with open("run.prof", "w") as f:
+		p = pstats.Stats("/tmp/profdump", stream=f)
+		p.sort_stats("cumulative")
+		p.print_stats()
