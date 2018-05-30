@@ -31,7 +31,7 @@ def load_jsl_from_folder(data_dir, target_pad):
 	files = [str(x) for x in os.listdir(data_dir) if x[-4:] == ".csv"]
 
 	all_data = []
-	for file in files[:10]:
+	for file in files[:2]:
 		ffile = os.path.join(data_dir, file)
 
 		data = np.transpose(np.genfromtxt(ffile, delimiter=','))

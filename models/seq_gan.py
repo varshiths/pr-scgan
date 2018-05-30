@@ -31,11 +31,10 @@ class SeqGAN(BaseModel):
                     out, 
                     get_variable(filt_dim, "conv%d" % (i)), 
                     strides=[1,1,1,1], 
-                    dilations=dilations,
                     padding=padding
                     )
                 if activation is not None:
-                    out = tf.nn.leaky_relu(out)
+                    out = leaky_relu(out)
             return out
 
         return function
@@ -46,23 +45,23 @@ class SeqGAN(BaseModel):
             return tf.contrib.rnn.DropoutWrapper(
             tf.contrib.rnn.BasicLSTMCell(num_units=num_units),
             output_keep_prob=keep_prob,
-            variational_recurrent=True,
-            dtype=tf.float32
+            # variational_recurrent=True,
+            # dtype=tf.float32
             )
 
         return tf.contrib.rnn.MultiRNNCell([rnn_cell() for _ in range(num_layers)])
 
-    def generator_network(self, state):
+    def generator_network(self, state, define=False):
 
-        with tf.variable_scope("generator", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("generator", reuse=(not define)):
 
             with tf.variable_scope("embedding_latent"):
                 w = tf.get_variable("weight", [self.config.latent_state_size, self.config.embedding_latent])
                 b = tf.get_variable("bias", [self.config.embedding_latent])
 
-                embedding_latent = tf.nn.leaky_relu( tf.matmul(state, w) + b )
+                embedding_latent = leaky_relu( tf.matmul(state, w) + b )
 
-            with tf.variable_scope("rnn", reuse=tf.AUTO_REUSE):
+            with tf.variable_scope("rnn", reuse=None) as rnn_scope:
                 rnn_unit_gen = SeqGAN.rnn_unit(
                     self.config.lstm_units_gen, 
                     self.config.lstm_layers_gen,
@@ -80,9 +79,13 @@ class SeqGAN(BaseModel):
                 outputs = []
                 rnn_state = rnn_unit_gen.zero_state(self.config.batch_size, dtype=tf.float32)
                 rnn_out = tf.zeros([self.config.batch_size, self.config.sequence_width])
-                for _ in range(self.config.time_steps):
+                for i in range(self.config.time_steps):
+                    # reuse set
+                    if i > 0:
+                        rnn_scope.reuse_variables()
+
                     rnn_in = tf.concat([embedding_latent, rnn_out], axis=1)
-                    rnn_in = tf.nn.leaky_relu(tf.matmul(rnn_in, wi) + bi)
+                    rnn_in = leaky_relu(tf.matmul(rnn_in, wi) + bi)
 
                     rnn_out, rnn_state = rnn_unit_gen(rnn_in, rnn_state)
                     
@@ -93,9 +96,9 @@ class SeqGAN(BaseModel):
 
         return outputs
 
-    def discriminator_network(self, seq):
+    def discriminator_network(self, seq, define=False):
 
-        with tf.variable_scope("discriminator", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("discriminator", reuse=(not define)):
 
             layers_params = [
                 ([5, 5, 1, 3], [1, 1, 1, 1]),
@@ -147,9 +150,9 @@ class SeqGAN(BaseModel):
         self.epsilon = tf.constant(1e-8)
         self.create_placeholders()
 
-        out_gen = self.out_gen = self.generator_network(self.latent)
+        out_gen = self.out_gen = self.generator_network(self.latent, True)
 
-        disc_out_gen = self.disc_out_gen = self.discriminator_network(out_gen)
+        disc_out_gen = self.disc_out_gen = self.discriminator_network(out_gen, True)
         disc_out_target = self.disc_out_target = self.discriminator_network(self.data)
 
         self.gen_cost = self.generator_cost(disc_out_gen)
@@ -182,3 +185,6 @@ class SeqGAN(BaseModel):
 
     def build_validation_metrics(self):
         pass
+
+def leaky_relu(data):
+    return tf.maximum(data, 0.2*data)
