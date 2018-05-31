@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 from .base_model import BaseModel
 import pprint
 
@@ -67,37 +68,95 @@ class SeqGAN(BaseModel):
                 embedding_latent = leaky_relu( tf.matmul(state, w) + b )
 
             with tf.variable_scope("rnn", reuse=None) as rnn_scope:
-                rnn_unit_gen = SeqGAN.rnn_unit(
+                cell = SeqGAN.rnn_unit(
                     self.config.lstm_units_gen, 
                     self.config.lstm_layers_gen,
                     self.config.keep_prob
                     )
 
                 with tf.variable_scope("input_embedding"):
-                    wi = tf.get_variable("weight", [self.config.sequence_width + self.config.embedding_latent, self.config.lstm_input_gen])
+                    wi = tf.get_variable("weight", [self.config.embedding_latent, self.config.lstm_input_gen])
                     bi = tf.get_variable("bias", [self.config.lstm_input_gen])
 
                 with tf.variable_scope("output_embedding"):
                     wo = tf.get_variable("weight", [self.config.lstm_units_gen, self.config.sequence_width])
                     bo = tf.get_variable("bias", [self.config.sequence_width])
 
-                outputs = []
-                rnn_state = rnn_unit_gen.zero_state(self.config.batch_size, dtype=tf.float32)
-                rnn_out = self.start
-                for i in range(self.config.time_steps):
-                    # reuse set
-                    if i > 0:
-                        rnn_scope.reuse_variables()
+                '''
+                vastly simplified model
+                to be improved
+                '''
+                input_seqs = leaky_relu(tf.matmul(embedding_latent, wi) + bi)
+                input_seqs = tf.reshape(input_seqs, [-1, 1, self.config.lstm_input_gen])
+                input_seqs = input_seqs + \
+                    np.zeros(
+                        shape=(self.config.batch_size, self.config.time_steps, self.config.lstm_input_gen), 
+                        )
 
-                    rnn_in = tf.concat([embedding_latent, rnn_out], axis=1)
-                    rnn_in = leaky_relu(tf.matmul(rnn_in, wi) + bi)
+                outputs, _ = tf.nn.dynamic_rnn(
+                    cell, 
+                    input_seqs,
+                    initial_state=cell.zero_state(self.config.batch_size, dtype=tf.float32),
+                    dtype=tf.float32,
+                    )
 
-                    rnn_out, rnn_state = rnn_unit_gen(rnn_in, rnn_state)
+                outputs = tf.reshape(outputs, [-1, self.config.lstm_input_gen])
+                outputs = tf.nn.tanh( tf.matmul(outputs, wo) + bo )
+                outputs = tf.reshape(outputs, [-1, self.config.time_steps, self.config.sequence_width])
+
+                '''
+                Not compatible with tf 1.4.1
+                '''
+                # def initialize():
+                #     return (False, self.start)
+
+                # def sample(time, outputs, state):
+                #     # return sample_ids
+                #     return None
+
+                # def next_inputs(time, outputs, state, sample_ids):
+                #     # return (False, next_inputs, next_state)
+                #     return (False, outputs, state)
+
+                # helper = tf.contrib.seq2seq.CustomHelper(
+                #         initialize_fn=initialize,
+                #         sample_fn=sample,
+                #         next_inputs_fn=next_inputs,
+                #         sample_ids_shape=None,
+                #         sample_ids_dtype=None
+                #     )
+
+                # decoder = tf.contrib.seq2seq.BasicDecoder(
+                #     cell=cell,
+                #     helper=helper,
+                #     initial_state=cell.zero_state(batch_size, tf.float32))
+                # outputs, _ = tf.contrib.seq2seq.dynamic_decode(
+                #     decoder=decoder,
+                #     output_time_major=False,
+                #     impute_finished=True,
+                #     maximum_iterations=self.config.time_steps)
+
+                '''
+                Unbelievably slow compile time
+                Do not use
+                '''
+                # outputs = []
+                # rnn_state = cell.zero_state(self.config.batch_size, dtype=tf.float32)
+                # rnn_out = self.start
+                # for i in range(self.config.time_steps):
+                #     # reuse set
+                #     if i > 0:
+                #         rnn_scope.reuse_variables()
+
+                #     rnn_in = tf.concat([embedding_latent, rnn_out], axis=1)
+                #     rnn_in = leaky_relu(tf.matmul(rnn_in, wi) + bi)
+
+                #     rnn_out, rnn_state = cell(rnn_in, rnn_state)
                     
-                    rnn_out = tf.nn.tanh(tf.matmul(rnn_out, wo) + bo)
-                    outputs.append(rnn_out)
+                #     rnn_out = tf.nn.tanh(tf.matmul(rnn_out, wo) + bo)
+                #     outputs.append(rnn_out)
 
-                outputs = tf.stack(outputs, axis=1)
+                # outputs = tf.stack(outputs, axis=1)
 
         return outputs
 

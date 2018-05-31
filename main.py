@@ -44,8 +44,6 @@ def main(argv):
 
 	with tf.Graph().as_default():
 
-		tf.device("/device:GPU:0")
-
 		if FLAGS.seed is not None:
 			tf.set_random_seed(FLAGS.seed)
 			np.random.seed(FLAGS.seed)
@@ -98,9 +96,14 @@ def main(argv):
 
 
 if __name__ == '__main__':
-	cProfile.run("tf.app.run()", "/tmp/profdump")
+	try:
+		cProfile.run("tf.app.run()", "/tmp/profdump")
+	except Exception as e:
+		import traceback
+		traceback.print_exc()
 
 	with open("run.prof", "w") as f:
 		p = pstats.Stats("/tmp/profdump", stream=f)
+		p.strip_dirs()
 		p.sort_stats("cumulative")
 		p.print_stats()
