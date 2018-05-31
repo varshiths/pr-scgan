@@ -19,14 +19,20 @@ class JSL(BaseData):
 		# process data
 		print(data_train.shape)
 
-		self.data_train_min = np.min(data_train, (0,1))
-		self.data_train_max = np.max(data_train, (0,1))
-		data_train = ((data_train - self.data_train_min)/(self.data_train_max - self.data_train_min))*2 - 1
+		data_train_min = np.min(data_train, (0,1))
+		data_train_max = np.max(data_train, (0,1))
+
+		self.scale = np.maximum(data_train_max - data_train_min, np.exp(-5))
+		self.offset = data_train_min
+
+		data_train = ((data_train - self.offset)/self.scale)*2 - 1
 
 		self.data_train = data_train
 		
 	def denormalise(self, data):
-		return ((data+1)/2)*(self.data_train_max-self.data_train_min) + self.data_train_min
+
+		ret = ((data+1)/2)*self.scale + self.offset
+		return ret
 
 	def next_batch(self):
 

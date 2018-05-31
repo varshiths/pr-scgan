@@ -1,30 +1,14 @@
 import tensorflow as tf
 import numpy as np
-from .base_train import BaseTrain
+
+from .gan_train import GANTrain
+
 import pprint
 
 pp = pprint.PrettyPrinter()
 
 
-class GANTrain(BaseTrain):
-
-    def train(self):
-
-        self.pre_train()
-
-        for cur_epoch in range(0, self.config.num_epochs + 1, 1):
-
-            print("Epoch:", cur_epoch)
-
-            for k in range(self.config.disc_ascents):
-
-                self.disc_step()
-
-            for k in range(self.config.gen_descents):
-
-                self.gen_step()
-
-        self.validation_metrics()
+class SeqGANTrain(GANTrain):
 
     def pre_train(self):
 

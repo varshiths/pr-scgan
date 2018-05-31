@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
+from .utils import *
+
 
 def run_with_feed(sess, model, data, feed):
 	
@@ -57,28 +59,6 @@ def run_model_and_plot_image(sess, model, data, config):
 
 	plt.show()
 
-def interpolate(point1, point2, n):
-
-	diff = (point2 - point1)/(n)
-	points = []
-	for i in range(n+1):
-		points.append(point1 + diff * i)
-
-	return np.stack(points, axis=0)
-
-def spher_interpolate(point1, point2, n):
-	val = np.linspace(0, 1, n+1)
-	points = []
-	for i in range(n+1):
-		points.append(slerp(val[i], point1, point2))
-
-	return np.stack(points, axis=0)
-
-def slerp(val, low, high):
-    omega = np.arccos(np.dot(low/np.linalg.norm(low), high/np.linalg.norm(high)))
-    so = np.sin(omega)
-    return np.sin((1.0-val)*omega) / so * low + np.sin(val*omega)/so * high
-
 def run_model_and_plot_gesture(sess, model, data, config):
 
 	# samples = np.random.randn(32, config.latent_state_size)
@@ -104,7 +84,7 @@ def run_model_and_plot_gesture(sess, model, data, config):
 	    img = gesture[i-1,:,:]
 	    fig.add_subplot(rows, columns, i)
 	    plt.imshow(img, cmap="gray", aspect="auto")
-	    # plt.colorbar()
+	    plt.colorbar()
 
 	plt.show()
 

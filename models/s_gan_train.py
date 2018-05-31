@@ -1,59 +1,51 @@
 import tensorflow as tf
-from .base_train import BaseTrain
+from .gan_train import GANTrain
 import pprint
 
 pp = pprint.PrettyPrinter()
 
 
-class SGANTrain(BaseTrain):
+class SGANTrain(GANTrain):
 
-    def train(self):
-        for cur_epoch in range(0, self.config.num_epochs + 1, 1):
+    def disc_step(self):
 
-            print("Epoch:", cur_epoch)
+        batch = self.data.random_batch()
 
-            for k in range(self.config.disc_ascents):
+        fetches = {
+            "train_step" : self.model.disc_grad_step,
+            "disc_cost" : self.model.disc_cost,
+            "gen_cost" : self.model.gen_cost,
+        }
 
-                batch = self.data.random_batch()
+        feed = {
+            self.model.image.name : batch["data"],
+            self.model.label.name : batch["labels"],
+        }
 
-                fetches = {
-                    "train_step" : self.model.disc_grad_step,
-                    "disc_cost" : self.model.disc_cost,
-                    "gen_cost" : self.model.gen_cost,
-                }
+        fetched = self.sess.run(fetches, feed)
 
-                feed = {
-                    self.model.image.name : batch["images"],
-                    self.model.label.name : batch["labels"],
-                }
+        print("^ Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
 
-                fetched = self.sess.run(fetches, feed)
+    def gen_step(self):
+        
+        batch = self.data.random_batch()
 
-                print("^ Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
+        fetches = {
+            "train_step" : self.model.gen_grad_step,
+            "disc_cost" : self.model.disc_cost,
+            "gen_cost" : self.model.gen_cost,
+        }
 
-            for k in range(self.config.gen_descents):
+        feed = {
+            self.model.image.name : batch["data"],
+            self.model.label.name : batch["labels"],
+        }
 
-                batch = self.data.random_batch()
+        fetched = self.sess.run(fetches, feed)
 
-                fetches = {
-                    "train_step" : self.model.gen_grad_step,
-                    "disc_cost" : self.model.disc_cost,
-                    "gen_cost" : self.model.gen_cost,
-                }
+        print(". Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
 
-                feed = {
-                    self.model.image.name : batch["images"],
-                    self.model.label.name : batch["labels"],
-                }
-
-                fetched = self.sess.run(fetches, feed)
-
-                print(". Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
-
-            # estimate validation accuracy
-            self.estimate_val_accur()
-
-    def estimate_val_accur(self):
+    def validation_metrics(self):
         batch = self.data.validation_set()
 
         fetches = {
@@ -61,7 +53,7 @@ class SGANTrain(BaseTrain):
         }
 
         feed = {
-            self.model.image.name : batch["images"],
+            self.model.image.name : batch["data"],
             self.model.label.name : batch["labels"],
         }
 
@@ -69,18 +61,4 @@ class SGANTrain(BaseTrain):
 
         pp.pprint(fetched)
 
-    def train_epoch(self):
-        """
-        implement the logic of epoch:
-        -loop over the number of iterations in the config and call the train step
-        -add any summaries you want using the summary
-        """
-        raise NotImplementedError
 
-    def train_step(self):
-        """
-        implement the logic of the train step
-        - run the tensorflow session
-        - return any metrics you need to summarize
-        """
-        raise NotImplementedError

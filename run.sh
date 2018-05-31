@@ -4,5 +4,6 @@ time python3 main.py \
 	--config configs/seqgan.json \
 	--architecture seqgan \
 	--mode train \
-	--model trial \
-	--save trial \
+	--test_index 1 \
+	# --save trial \
+	# --model trial \

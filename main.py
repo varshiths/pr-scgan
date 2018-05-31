@@ -27,6 +27,8 @@ flags.DEFINE_string("mode", "dummy", "flag whether to train or test")
 flags.DEFINE_string("model", None, "loading saved model")
 flags.DEFINE_string("save", None, "name of the model to save")
 
+flags.DEFINE_integer("test_index", None, "to select which test to perform")
+
 FLAGS = flags.FLAGS
 
 
@@ -49,7 +51,6 @@ def main(argv):
 			np.random.seed(FLAGS.seed)
 
 		# create model
-		model = BaseModel(config)
 		if FLAGS.architecture == "ff":
 			model = FF(config)
 		elif FLAGS.architecture == "gan":
@@ -60,6 +61,8 @@ def main(argv):
 			model = SeqGAN(config)
 		elif FLAGS.architecture == "sganconv":
 			model = SGANConv(config)
+		else:
+			model = BaseModel(config)
 
 		with tf.Session() as session:
 
@@ -74,7 +77,7 @@ def main(argv):
 				elif FLAGS.architecture == "gan":
 					model_train = GANTrain(session, model, data, config, None)
 				elif FLAGS.architecture == "seqgan":
-					model_train = GANTrain(session, model, data, config, None)
+					model_train = SeqGANTrain(session, model, data, config, None)
 				elif FLAGS.architecture[:4] == "sgan":
 					model_train = SGANTrain(session, model, data, config, None)
 
@@ -87,10 +90,10 @@ def main(argv):
 					model.save(session, FLAGS.save)
 			elif FLAGS.mode[:4] == "test":
 				# MNIST GAN Samples, Linear and SLERP Interpolation
-				if FLAGS.mode == "test1":
+				if FLAGS.test_index == 0:
 					run_model_and_plot_image(session, model, data, config)
 				# JSL GAN Samples
-				elif FLAGS.mode == "test2":
+				elif FLAGS.test_index == 1:
 					run_model_and_plot_gesture(session, model, data, config)
 
 
