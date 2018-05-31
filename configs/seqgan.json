@@ -2,7 +2,7 @@
   "num_epochs": 10000,
   "batch_size": 32,
 
-  "time_steps": 900,
+  "time_steps": 100,
 
   "sequence_width": 642,
   
@@ -23,7 +23,7 @@
   "gen_descents": 1,
   "max_grad": 10,
 
-  "data_dir": "/home/data/02_CSV_REAL/01_CSV_full/",
+  "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
 
   "checkpoint_dir": "save/seqgan/",
   "max_to_keep": 5,

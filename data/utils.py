@@ -27,7 +27,7 @@ def convert_to_one_hot(data, rang):
 
 	return enc_data
 
-def load_jsl_from_folder(data_dir, target_pad):
+def load_jsl_from_folder(data_dir, target_length):
 	files = [str(x) for x in os.listdir(data_dir) if x[-4:] == ".csv"]
 
 	all_data = []
@@ -38,7 +38,15 @@ def load_jsl_from_folder(data_dir, target_pad):
 		all_data.append(data)
 		print("%s \t %s" % (file, data.shape))
 
-	all_data = [ np.pad(x, [ (0,target_pad-x.shape[0]), (0,0) ], 'constant') for x in all_data ]
+	all_data = [ general_pad(x, target_length) for x in all_data ]
 	all_data = np.stack(all_data, axis=0)
 
 	return all_data
+
+def general_pad(x, target_length):
+
+	pads = target_length-x.shape[0]
+	if pads >= 0:
+		return np.pad(x, [ (0,pads), (0,0) ], 'constant')
+	else:
+		return x[:target_length, :]

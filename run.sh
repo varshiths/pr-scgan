@@ -3,6 +3,6 @@ time python3 main.py \
 	--dataset jsl \
 	--config configs/seqgan.json \
 	--architecture seqgan \
-	--mode test \
+	--mode train \
 	--model trial \
 	--save trial \
