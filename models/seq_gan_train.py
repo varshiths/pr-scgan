@@ -28,6 +28,7 @@ class SeqGANTrain(GANTrain):
         feed = {
             self.model.data.name : batch["data"],
             self.model.latent.name : np.random.randn(self.config.batch_size, self.config.latent_state_size),
+            self.model.start.name : np.random.randn(self.config.batch_size, self.config.sequence_width),
         }
 
         fetched = self.sess.run(fetches, feed)
@@ -47,6 +48,7 @@ class SeqGANTrain(GANTrain):
         feed = {
             self.model.data.name : batch["data"],
             self.model.latent.name : np.random.randn(self.config.batch_size, self.config.latent_state_size),
+            self.model.start.name : np.random.randn(self.config.batch_size, self.config.sequence_width),
         }
 
         fetched = self.sess.run(fetches, feed)

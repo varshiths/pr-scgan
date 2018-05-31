@@ -19,6 +19,11 @@ class SeqGAN(BaseModel):
                 shape=[None, self.config.latent_state_size]
             )
 
+        self.start = tf.placeholder(
+                dtype=tf.float32,
+                shape=[None, self.config.sequence_width]
+            )
+
     def cnn_unit(params, activation=None, padding="SAME"):
 
         def get_variable(filt_dim, scope):
@@ -78,7 +83,7 @@ class SeqGAN(BaseModel):
 
                 outputs = []
                 rnn_state = rnn_unit_gen.zero_state(self.config.batch_size, dtype=tf.float32)
-                rnn_out = tf.zeros([self.config.batch_size, self.config.sequence_width])
+                rnn_out = self.start
                 for i in range(self.config.time_steps):
                     # reuse set
                     if i > 0:

@@ -3,7 +3,7 @@ time python3 main.py \
 	--dataset jsl \
 	--config configs/seqgan.json \
 	--architecture seqgan \
-	--mode train \
-	--test_index 1 \
+	--mode test \
+	# --test_index 1 \
 	# --save trial \
 	# --model trial \

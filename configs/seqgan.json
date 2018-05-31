@@ -1,8 +1,8 @@
 {
   "num_epochs": 10000,
-  "batch_size": 4,
+  "batch_size": 32,
 
-  "time_steps": 100,
+  "time_steps": 900,
 
   "sequence_width": 642,
   
