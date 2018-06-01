@@ -36,7 +36,8 @@ class SeqGAN(BaseModel):
                 out = tf.nn.conv2d(
                     out, 
                     get_variable(filt_dim, "conv%d" % (i)), 
-                    strides=strides, 
+                    data_format="NCHW",
+                    strides=strides,
                     dilations=dilations,
                     padding=padding
                     )
@@ -166,21 +167,21 @@ class SeqGAN(BaseModel):
         with tf.variable_scope("discriminator", reuse=(not define)):
 
             layers_params = [
-                ([5, 5, 1, 3], [1, 3, 1, 1], [1, 3, 1, 1]),
-                ([5, 5, 3, 5], [1, 2, 1, 1], [1, 2, 1, 1]),
+                ([5, 5, 1, 3], [1, 1, 3, 1], [1, 1, 3, 1]),
+                ([5, 5, 3, 5], [1, 1, 2, 1], [1, 1, 2, 1]),
                 ([5, 5, 5, 3], [1, 1, 1, 1], [1, 1, 1, 1]),
                 ([5, 5, 3, 1], [1, 1, 1, 1], [1, 1, 1, 1])
             ]
 
             cnn_unit_disc = SeqGAN.cnn_unit(layers_params, "leaky_relu", "SAME")
 
-            seq = tf.reshape(seq, [-1, self.config.time_steps, self.config.sequence_width, 1])
+            seq = tf.reshape(seq, [-1, 1, self.config.time_steps, self.config.sequence_width])
             out_cnn = cnn_unit_disc(seq)
             
             out_pool = tf.reshape(
                 tf.nn.avg_pool(
                     out_cnn, 
-                    [1, out_cnn.shape[1].value, 1, 1],
+                    [1, 1, out_cnn.shape[1].value, 1],
                     strides=[1,1,1,1],
                     padding="VALID",
                     ), 

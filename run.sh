@@ -6,5 +6,5 @@ time python3 main.py \
 	--architecture seqgan \
 	--save trial \
 	--test_index 1 \
-	# --mode train \
+	--mode train \
 	# --model trial \
