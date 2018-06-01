@@ -13,10 +13,10 @@ class JSL(BaseData):
 
 		print("Loading data...")
 		# download/load if not already present
-		data_train = JSL.load_jsl_from_folder(self.config.data_dir, self.config.sequence_length)
+		data_train = self.load_jsl_from_folder()
 
 		print("Downsampling data...")
-		data_train = data_train[:,::4,:]
+		data_train = data_train[:,::2,:]
 
 		print("Normalising data...")
 		# process data
@@ -33,11 +33,13 @@ class JSL(BaseData):
 		self.data_train = data_train
 
 
-	def load_jsl_from_folder(data_dir, target_length):
+	def load_jsl_from_folder(self):
+
+		data_dir, target_length = self.config.data_dir, self.config.sequence_length
 		files = [str(x) for x in os.listdir(data_dir) if x[-4:] == ".csv"]
 
 		all_data = []
-		for file in files[:4]:
+		for file in files[:self.config.nfiles]:
 			ffile = os.path.join(data_dir, file)
 
 			data = np.transpose(np.genfromtxt(ffile, delimiter=','))

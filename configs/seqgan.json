@@ -2,8 +2,10 @@
   "num_epochs": 10000,
   "batch_size": 32,
 
-  "time_steps": 225,
-  "sequence_length": 900,
+  "nfiles": -1,
+
+  "time_steps": 375,
+  "sequence_length": 750,
 
   "sequence_width": 642,
   
