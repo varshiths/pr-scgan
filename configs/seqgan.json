@@ -2,7 +2,8 @@
   "num_epochs": 10000,
   "batch_size": 32,
 
-  "time_steps": 500,
+  "time_steps": 225,
+  "sequence_length": 900,
 
   "sequence_width": 642,
   
@@ -19,7 +20,7 @@
   "lstm_layers_disc" : 3,
 
   "learning_rate": 0.001,
-  "disc_ascents": 1,
+  "disc_ascents": 3,
   "gen_descents": 1,
   "max_grad": 10,
 

@@ -32,15 +32,16 @@ class SeqGAN(BaseModel):
 
         def function(inp):
             out = inp
-            for i, (filt_dim, dilations) in enumerate(params):
+            for i, (filt_dim, strides, dilations) in enumerate(params):
                 out = tf.nn.conv2d(
                     out, 
                     get_variable(filt_dim, "conv%d" % (i)), 
-                    strides=[1,1,1,1], 
+                    strides=strides, 
+                    dilations=dilations,
                     padding=padding
                     )
                 if activation is not None:
-                    out = leaky_relu(out)
+                    out = tf.nn.leaky_relu(out)
             return out
 
         return function
@@ -49,10 +50,10 @@ class SeqGAN(BaseModel):
 
         def rnn_cell():
             return tf.contrib.rnn.DropoutWrapper(
-            tf.contrib.rnn.BasicLSTMCell(num_units=num_units),
+            tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(num_units=num_units),
             output_keep_prob=keep_prob,
-            # variational_recurrent=True,
-            # dtype=tf.float32
+            variational_recurrent=True,
+            dtype=tf.float32
             )
 
         return tf.contrib.rnn.MultiRNNCell([rnn_cell() for _ in range(num_layers)])
@@ -65,7 +66,7 @@ class SeqGAN(BaseModel):
                 w = tf.get_variable("weight", [self.config.latent_state_size, self.config.embedding_latent])
                 b = tf.get_variable("bias", [self.config.embedding_latent])
 
-                embedding_latent = leaky_relu( tf.matmul(state, w) + b )
+                embedding_latent = tf.nn.leaky_relu( tf.matmul(state, w) + b )
 
             with tf.variable_scope("rnn", reuse=None) as rnn_scope:
                 cell = SeqGAN.rnn_unit(
@@ -86,7 +87,7 @@ class SeqGAN(BaseModel):
                 vastly simplified model
                 to be improved
                 '''
-                input_seqs = leaky_relu(tf.matmul(embedding_latent, wi) + bi)
+                input_seqs = tf.nn.leaky_relu(tf.matmul(embedding_latent, wi) + bi)
                 input_seqs = tf.reshape(input_seqs, [-1, 1, self.config.lstm_input_gen])
                 input_seqs = input_seqs + \
                     np.zeros(
@@ -129,7 +130,7 @@ class SeqGAN(BaseModel):
                 # decoder = tf.contrib.seq2seq.BasicDecoder(
                 #     cell=cell,
                 #     helper=helper,
-                #     initial_state=cell.zero_state(batch_size, tf.float32))
+                #     initial_state=cell.zero_state(self.config.batch_size, tf.float32))
                 # outputs, _ = tf.contrib.seq2seq.dynamic_decode(
                 #     decoder=decoder,
                 #     output_time_major=False,
@@ -149,7 +150,7 @@ class SeqGAN(BaseModel):
                 #         rnn_scope.reuse_variables()
 
                 #     rnn_in = tf.concat([embedding_latent, rnn_out], axis=1)
-                #     rnn_in = leaky_relu(tf.matmul(rnn_in, wi) + bi)
+                #     rnn_in = tf.nn.leaky_relu(tf.matmul(rnn_in, wi) + bi)
 
                 #     rnn_out, rnn_state = cell(rnn_in, rnn_state)
                     
@@ -165,10 +166,10 @@ class SeqGAN(BaseModel):
         with tf.variable_scope("discriminator", reuse=(not define)):
 
             layers_params = [
-                ([5, 5, 1, 3], [1, 1, 1, 1]),
-                ([5, 5, 3, 5], [1, 1, 1, 1]),
-                ([5, 5, 5, 3], [1, 1, 1, 1]),
-                ([5, 5, 3, 1], [1, 1, 1, 1])
+                ([5, 5, 1, 3], [1, 3, 1, 1], [1, 3, 1, 1]),
+                ([5, 5, 3, 5], [1, 2, 1, 1], [1, 2, 1, 1]),
+                ([5, 5, 5, 3], [1, 1, 1, 1], [1, 1, 1, 1]),
+                ([5, 5, 3, 1], [1, 1, 1, 1], [1, 1, 1, 1])
             ]
 
             cnn_unit_disc = SeqGAN.cnn_unit(layers_params, "leaky_relu", "SAME")
@@ -179,7 +180,7 @@ class SeqGAN(BaseModel):
             out_pool = tf.reshape(
                 tf.nn.avg_pool(
                     out_cnn, 
-                    [1, self.config.time_steps, 1, 1],
+                    [1, out_cnn.shape[1].value, 1, 1],
                     strides=[1,1,1,1],
                     padding="VALID",
                     ), 
@@ -249,6 +250,3 @@ class SeqGAN(BaseModel):
 
     def build_validation_metrics(self):
         pass
-
-def leaky_relu(data):
-    return tf.maximum(data, 0.2*data)

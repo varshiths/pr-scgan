@@ -13,7 +13,10 @@ class JSL(BaseData):
 
 		print("Loading data...")
 		# download/load if not already present
-		data_train = load_jsl_from_folder(self.config.data_dir, self.config.time_steps)
+		data_train = load_jsl_from_folder(self.config.data_dir, self.config.sequence_length)
+
+		print("Downsampling data...")
+		data_train = data_train[:,::4,:]
 
 		print("Normalising data...")
 		# process data

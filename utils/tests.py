@@ -61,23 +61,11 @@ def run_model_and_plot_image(sess, model, data, config):
 
 def run_model_and_plot_gesture(sess, model, data, config):
 
-	# samples = np.random.randn(32, config.latent_state_size)
-	# gesture = run_with_feed(sess, model, data, samples)
+	samples = np.random.randn(32, config.latent_state_size)
+	gesture = data.denormalise(run_with_feed(sess, model, data, samples))
 
-	# print("Plotting samples")
-	# fig=plt.figure(1)
-	# columns = 5
-	# rows = 5
-	# for i in range(1, columns*rows +1):
-	#     img = gesture[i-1,:,:]
-	#     fig.add_subplot(rows, columns, i)
-	#     plt.imshow(img, cmap="gray")
-	    # plt.colorbar()
-
-	gesture = data.denormalise(data.random_batch()["data"])
-
-	print("Plotting examples")
-	fig=plt.figure(2)
+	print("Plotting samples")
+	fig=plt.figure(1)
 	columns = 3
 	rows = 1
 	for i in range(1, columns*rows +1):
@@ -85,6 +73,18 @@ def run_model_and_plot_gesture(sess, model, data, config):
 	    fig.add_subplot(rows, columns, i)
 	    plt.imshow(img, cmap="gray", aspect="auto")
 	    plt.colorbar()
+
+	gesture = data.denormalise(data.random_batch()["data"])
+
+	# print("Plotting examples")
+	# fig=plt.figure(2)
+	# columns = 3
+	# rows = 1
+	# for i in range(1, columns*rows +1):
+	#     img = gesture[i-1,:,:]
+	#     fig.add_subplot(rows, columns, i)
+	#     plt.imshow(img, cmap="gray", aspect="auto")
+	#     plt.colorbar()
 
 	plt.show()
 
