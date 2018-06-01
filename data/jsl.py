@@ -13,7 +13,7 @@ class JSL(BaseData):
 
 		print("Loading data...")
 		# download/load if not already present
-		data_train = load_jsl_from_folder(self.config.data_dir, self.config.sequence_length)
+		data_train = JSL.load_jsl_from_folder(self.config.data_dir, self.config.sequence_length)
 
 		print("Downsampling data...")
 		data_train = data_train[:,::4,:]
@@ -31,6 +31,23 @@ class JSL(BaseData):
 		data_train = ((data_train - self.offset)/self.scale)*2 - 1
 
 		self.data_train = data_train
+
+
+	def load_jsl_from_folder(data_dir, target_length):
+		files = [str(x) for x in os.listdir(data_dir) if x[-4:] == ".csv"]
+
+		all_data = []
+		for file in files[:4]:
+			ffile = os.path.join(data_dir, file)
+
+			data = np.transpose(np.genfromtxt(ffile, delimiter=','))
+			all_data.append(data)
+			print("%s \t %s" % (file, data.shape))
+
+		all_data = [ general_pad(x, target_length) for x in all_data ]
+		all_data = np.stack(all_data, axis=0)
+
+		return all_data
 		
 	def denormalise(self, data):
 
