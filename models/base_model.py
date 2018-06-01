@@ -19,6 +19,10 @@ class BaseModel:
 
     # save function that saves the checkpoint in the path defined in the config file
     def save(self, sess, model, verbose=False):
+
+        if not os.path.exists(self.config.checkpoint_dir):
+            os.makedirs(self.config.checkpoint_dir)
+
         model_path = os.path.join(self.config.checkpoint_dir, model)
 
         print("Saving model {} ...".format(model_path))
