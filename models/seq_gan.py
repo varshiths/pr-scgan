@@ -12,17 +12,17 @@ class SeqGAN(BaseModel):
         # sequence
         self.data = tf.placeholder(
                 dtype=tf.float32,
-                shape=[None, self.config.time_steps, self.config.sequence_width]
+                shape=[self.config.batch_size, self.config.time_steps, self.config.sequence_width]
             )
 
         self.latent = tf.placeholder(
                 dtype=tf.float32,
-                shape=[None, self.config.latent_state_size]
+                shape=[self.config.batch_size, self.config.latent_state_size]
             )
 
         self.start = tf.placeholder(
                 dtype=tf.float32,
-                shape=[None, self.config.sequence_width]
+                shape=[self.config.batch_size, self.config.sequence_width]
             )
 
     def cnn_unit(params, activation=None, padding="SAME"):
@@ -77,7 +77,7 @@ class SeqGAN(BaseModel):
                     )
 
                 with tf.variable_scope("input_embedding"):
-                    wi = tf.get_variable("weight", [self.config.embedding_latent, self.config.lstm_input_gen])
+                    wi = tf.get_variable("weight", [self.config.embedding_latent+self.config.sequence_width, self.config.lstm_input_gen])
                     bi = tf.get_variable("bias", [self.config.lstm_input_gen])
 
                 with tf.variable_scope("output_embedding"):
@@ -88,55 +88,72 @@ class SeqGAN(BaseModel):
                 vastly simplified model
                 to be improved
                 '''
-                input_seqs = tf.nn.leaky_relu(tf.matmul(embedding_latent, wi) + bi)
-                input_seqs = tf.reshape(input_seqs, [-1, 1, self.config.lstm_input_gen])
-                input_seqs = input_seqs + \
-                    np.zeros(
-                        shape=(self.config.batch_size, self.config.time_steps, self.config.lstm_input_gen), 
-                        )
+                # input_seqs = tf.nn.leaky_relu(tf.matmul(embedding_latent, wi) + bi)
+                # input_seqs = tf.reshape(input_seqs, [-1, 1, self.config.lstm_input_gen])
+                # input_seqs = input_seqs + \
+                #     np.zeros(
+                #         shape=(self.config.batch_size, self.config.time_steps, self.config.lstm_input_gen), 
+                #         )
 
-                outputs, _ = tf.nn.dynamic_rnn(
-                    cell, 
-                    input_seqs,
-                    initial_state=cell.zero_state(self.config.batch_size, dtype=tf.float32),
-                    dtype=tf.float32,
-                    )
+                # outputs, _ = tf.nn.dynamic_rnn(
+                #     cell, 
+                #     input_seqs,
+                #     initial_state=cell.zero_state(self.config.batch_size, dtype=tf.float32),
+                #     dtype=tf.float32,
+                #     )
 
-                outputs = tf.reshape(outputs, [-1, self.config.lstm_input_gen])
-                outputs = tf.nn.tanh( tf.matmul(outputs, wo) + bo )
-                outputs = tf.reshape(outputs, [-1, self.config.time_steps, self.config.sequence_width])
+                # outputs = tf.reshape(outputs, [-1, self.config.lstm_input_gen])
+                # outputs = tf.nn.tanh( tf.matmul(outputs, wo) + bo )
+                # outputs = tf.reshape(outputs, [-1, self.config.time_steps, self.config.sequence_width])
 
                 '''
                 Not compatible with tf 1.4.1
                 '''
-                # def initialize():
-                #     return (False, self.start)
+                def initialize():
+                    next_inputs = tf.concat([embedding_latent, self.start], axis=1)
+                    next_inputs = tf.nn.leaky_relu(tf.matmul(next_inputs, wi) + bi)
+                    finished = tf.tile([False], [self.config.batch_size])
+                    return (finished, next_inputs)
 
-                # def sample(time, outputs, state):
-                #     # return sample_ids
-                #     return None
+                def sample(time, outputs, state):
+                    samples = tf.tile([0], [self.config.batch_size])
+                    return samples
 
-                # def next_inputs(time, outputs, state, sample_ids):
-                #     # return (False, next_inputs, next_state)
-                #     return (False, outputs, state)
+                def next_inputs(time, outputs, state, sample_ids):
+                    
+                    next_inputs = tf.concat([embedding_latent, outputs], axis=1)
+                    next_inputs = tf.nn.leaky_relu(tf.matmul(next_inputs, wi) + bi)
+                    finished = tf.tile([False], [self.config.batch_size])
 
-                # helper = tf.contrib.seq2seq.CustomHelper(
-                #         initialize_fn=initialize,
-                #         sample_fn=sample,
-                #         next_inputs_fn=next_inputs,
-                #         sample_ids_shape=None,
-                #         sample_ids_dtype=None
-                #     )
+                    # return (finished, next_inputs, next_state)
+                    return (finished, next_inputs, state)
 
-                # decoder = tf.contrib.seq2seq.BasicDecoder(
-                #     cell=cell,
-                #     helper=helper,
-                #     initial_state=cell.zero_state(self.config.batch_size, tf.float32))
-                # outputs, _ = tf.contrib.seq2seq.dynamic_decode(
-                #     decoder=decoder,
-                #     output_time_major=False,
-                #     impute_finished=True,
-                #     maximum_iterations=self.config.time_steps)
+                helper = tf.contrib.seq2seq.CustomHelper(
+                        initialize_fn=initialize,
+                        sample_fn=sample,
+                        next_inputs_fn=next_inputs,
+                        sample_ids_shape=None,
+                        sample_ids_dtype=None
+                    )
+
+                decoder = tf.contrib.seq2seq.BasicDecoder(
+                    cell=cell,
+                    helper=helper,
+                    initial_state=cell.zero_state(self.config.batch_size, tf.float32),
+                    output_layer=tf.layers.Dense(
+                            units=self.config.sequence_width,
+                            activation=tf.nn.leaky_relu,
+                            kernel_initializer=tf.random_normal_initializer(),
+                            bias_initializer=tf.random_normal_initializer(),
+                        ),
+                    )
+                outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+                    decoder=decoder,
+                    output_time_major=False,
+                    parallel_iterations=12,
+                    maximum_iterations=self.config.time_steps)
+
+                outputs = outputs.rnn_output
 
                 '''
                 Unbelievably slow compile time
