@@ -4,7 +4,7 @@ import numpy as np
 from .utils import *
 
 
-def run_with_feed(sess, model, data, feed):
+def run_with_feed(sess, model, data, feed, start=None):
 	
 	fetches = {
 		"out": model.out_gen.name,
@@ -13,6 +13,8 @@ def run_with_feed(sess, model, data, feed):
 	feed = {
 		model.latent.name: feed
 	}
+	if start is not None:
+		feed[model.start.name] = start
 
 	fetched = sess.run(fetches, feed)
 
@@ -61,8 +63,9 @@ def run_model_and_plot_image(sess, model, data, config):
 
 def run_model_and_plot_gesture(sess, model, data, config):
 
-	samples = np.random.randn(32, config.latent_state_size)
-	gesture = data.denormalise(run_with_feed(sess, model, data, samples))
+	samples = np.random.randn(config.batch_size, config.latent_state_size)
+	start = np.zeros((config.batch_size, config.sequence_width))
+	gesture = data.denormalise(run_with_feed(sess, model, data, samples, start))
 
 	print("Plotting samples")
 	fig=plt.figure(1)
