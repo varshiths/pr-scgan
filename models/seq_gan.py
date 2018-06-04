@@ -175,6 +175,8 @@ class SeqGAN(BaseModel):
 
                 # outputs = tf.stack(outputs, axis=1)
 
+        if define:
+            self.gen_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator")
         return outputs
 
     def discriminator_network(self, seq, define=False):
@@ -213,6 +215,8 @@ class SeqGAN(BaseModel):
                 out = tf.nn.sigmoid( tf.matmul(out_pool, w) + b )
                 out = tf.reshape(out, [-1])
 
+        if define:
+            self.disc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
         return out
 
     def generator_cost(self, prob_image_gen):
@@ -234,38 +238,92 @@ class SeqGAN(BaseModel):
         self.epsilon = tf.constant(1e-8)
         self.create_placeholders()
 
-        out_gen = self.out_gen = self.generator_network(self.latent, self.start, True)
+        # split feed into batches for ngpus
+        data_a = make_batches(self.config.ngpus, self.data)
+        latent_a = make_batches(self.config.ngpus, self.latent)
+        start_a = make_batches(self.config.ngpus, self.start)
+        
+        out_gen_list = []
+        gen_cost_list = []
+        disc_cost_list = []
+        
+        gen_grads_list = []
+        disc_grads_list = []
 
-        disc_out_gen = self.disc_out_gen = self.discriminator_network(out_gen, True)
-        disc_out_target = self.disc_out_target = self.discriminator_network(self.data)
+        with tf.variable_scope(tf.get_variable_scope()):
+            for i in range(self.config.ngpus):
+                with tf.device('/gpu:%d' % i):
+                    with tf.name_scope('%s_%d' % ("TOWER", i)) as scope:
 
-        self.gen_cost = self.generator_cost(disc_out_gen)
-        self.disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target)
+                        data, latent, start = data_a[i], latent_a[i], start_a[i] 
 
-        self.build_gradient_steps()
+                        out_gen = self.generator_network(latent, start, i==0)
+
+                        disc_out_gen = self.discriminator_network(out_gen, i==0)
+                        disc_out_target = self.discriminator_network(data)
+
+                        gen_cost = self.generator_cost(disc_out_gen)
+                        disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target)
+
+                        gen_grads = self.compute_and_clip_gradients(gen_cost, self.gen_vars)
+                        disc_grads = self.compute_and_clip_gradients(disc_cost, self.disc_vars)
+
+                        out_gen_list.append(out_gen)
+                        gen_cost_list.append(gen_cost)
+                        disc_cost_list.append(disc_cost)
+                        gen_grads_list.append(gen_grads)
+                        disc_grads_list.append(disc_grads)
+
+        gen_grads = average_gradients(gen_grads_list)
+        disc_grads = average_gradients(disc_grads_list)
+
+        # defining optimizer
+        optimizer = tf.train.AdamOptimizer(
+            learning_rate=self.config.learning_rate
+        )
+
+        # main step fetches
+        self.gen_grad_step = optimizer.apply_gradients(zip( gen_grads, self.gen_vars ))
+        self.disc_grad_step = optimizer.apply_gradients(zip( disc_grads, self.disc_vars ))
+
+        # setting other informative fetches
+        self.out_gen = tf.stack(out_gen, axis=0)
+        self.gen_cost = tf.reduce_mean(tf.convert_to_tensor(gen_cost))
+        self.disc_cost = tf.reduce_mean(tf.convert_to_tensor(disc_cost))
+        self.gen_grads = gen_grads
+        self.disc_grads = disc_grads
 
         self.build_validation_metrics()
 
-    def build_gradient_steps(self):
+    def compute_and_clip_gradients(self, cost, _vars):
 
-        gen_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator")
-        disc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
-
-        gen_grad_vars = gen_vars
-        disc_grad_vars = disc_vars
-
-        gen_grads = self.gen_grads = tf.gradients(self.gen_cost, gen_grad_vars)
-        disc_grads = self.disc_grads = tf.gradients(self.disc_cost, disc_grad_vars)
-
-        optimizer = tf.train.AdamOptimizer(
-                learning_rate=self.config.learning_rate
-            )
-
-        clipped_gen_grads, _ = tf.clip_by_global_norm(gen_grads, self.config.max_grad)
-        clipped_disc_grads, _ = tf.clip_by_global_norm(disc_grads, self.config.max_grad)
-
-        self.gen_grad_step = optimizer.apply_gradients(zip(clipped_gen_grads, gen_grad_vars))
-        self.disc_grad_step = optimizer.apply_gradients(zip(clipped_disc_grads, disc_grad_vars))
+        grads = tf.gradients(cost, _vars)
+        clipped_grads, _ = tf.clip_by_global_norm(grads, self.config.max_grad)
+        return clipped_grads
 
     def build_validation_metrics(self):
         pass
+
+def average_gradients(grads):
+
+    average_grads = []
+    for gradv in zip(*grads):
+      # Average over the 'tower' dimension.
+      grad = tf.stack(gradv, axis=0)
+      grad = tf.reduce_mean(grad, axis=0)
+
+      # Keep in mind that the Variables are redundant because they are shared
+      # across towers. So .. we will just return the first tower's pointer to
+      # the Variable.
+      average_grads.append(grad)
+    return average_grads
+
+def make_batches(n, data):
+    try:
+        shape = [x.value for x in list(data.shape)]
+        shape[0] = int(shape[0]/n)
+        shape.insert(0, n)
+        batched = tf.reshape(data, shape)
+    except Exception as e:
+        raise Exception("Batch size not a multiple of ngpus")
+    return batched

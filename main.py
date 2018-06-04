@@ -47,7 +47,7 @@ def main(argv):
 	elif FLAGS.dataset == "jsl":
 		data = JSL(config)
 
-	with tf.Graph().as_default():
+	with tf.Graph().as_default(), tf.device('/cpu:0'):
 
 		if FLAGS.seed is not None:
 			tf.set_random_seed(FLAGS.seed)

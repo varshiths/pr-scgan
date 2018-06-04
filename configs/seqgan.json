@@ -1,6 +1,7 @@
 {
   "num_epochs": 10000,
-  "batch_size": 4,
+  "ngpus": 2,
+  "batch_size": 20,
 
   "nfiles": -1,
 
