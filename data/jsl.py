@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import os
 from .base_data import BaseData
 
 from .utils import *
@@ -13,25 +14,40 @@ class JSL(BaseData):
 
 		print("Loading data...")
 		# download/load if not already present
-		data_train = self.load_jsl_from_folder()
+		if 	os.path.exists("JSL_data/train.npy") and \
+			os.path.exists("JSL_data/scale.npy") and \
+			os.path.exists("JSL_data/offset.npy"):
 
-		print("Downsampling data...")
-		data_train = data_train[:,::2,:]
+			print("Loading data from npy files...")
+			self.data_train = np.load("JSL_data/train.npy")
+			self.scale = np.load("JSL_data/scale.npy")
+			self.offset = np.load("JSL_data/offset.npy")
 
-		print("Normalising data...")
-		# process data
-		print(data_train.shape)
+		else:
 
-		data_train_min = np.min(data_train, (0,1))
-		data_train_max = np.max(data_train, (0,1))
+			data_train = self.load_jsl_from_folder()
 
-		self.scale = np.maximum(data_train_max - data_train_min, np.exp(-5))
-		self.offset = data_train_min
+			print("Downsampling data...")
+			data_train = data_train[:,::2,:]
 
-		data_train = ((data_train - self.offset)/self.scale)*2 - 1
+			print("Normalising data...")
+			# process data
+			print(data_train.shape)
 
-		self.data_train = data_train
+			data_train_min = np.min(data_train, (0,1))
+			data_train_max = np.max(data_train, (0,1))
 
+			self.scale = np.maximum(data_train_max - data_train_min, np.exp(-5))
+			self.offset = data_train_min
+
+			data_train = ((data_train - self.offset)/self.scale)*2 - 1
+
+			self.data_train = data_train
+
+			print("Saving data to npy files...")
+			np.save("JSL_data/train.npy", self.data_train)
+			np.save("JSL_data/scale.npy", self.scale)
+			np.save("JSL_data/offset.npy", self.offset)
 
 	def load_jsl_from_folder(self):
 
