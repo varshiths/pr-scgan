@@ -40,7 +40,7 @@ def main(argv):
 		allow_soft_placement=True,
 		log_device_placement=False,
 		)
-
+	session_config.gpu_options.allow_growth = True
 
 	if FLAGS.dataset == "mnist":
 		data = MNIST(config)
