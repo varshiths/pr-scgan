@@ -59,9 +59,10 @@ class SeqGAN(BaseModel):
 
         return tf.contrib.rnn.MultiRNNCell([rnn_cell() for _ in range(num_layers)])
 
-    def generator_network(self, state, define=False):
+    def generator_network(self, state, start, define=False):
 
         with tf.variable_scope("generator", reuse=(not define)):
+            batch_size = state.shape[0].value
 
             with tf.variable_scope("embedding_latent"):
                 w = tf.get_variable("weight", [self.config.latent_state_size, self.config.embedding_latent])
@@ -80,10 +81,6 @@ class SeqGAN(BaseModel):
                     wi = tf.get_variable("weight", [self.config.embedding_latent+self.config.sequence_width, self.config.lstm_input_gen])
                     bi = tf.get_variable("bias", [self.config.lstm_input_gen])
 
-                with tf.variable_scope("output_embedding"):
-                    wo = tf.get_variable("weight", [self.config.lstm_units_gen, self.config.sequence_width])
-                    bo = tf.get_variable("bias", [self.config.sequence_width])
-
                 '''
                 vastly simplified model
                 to be improved
@@ -92,13 +89,13 @@ class SeqGAN(BaseModel):
                 # input_seqs = tf.reshape(input_seqs, [-1, 1, self.config.lstm_input_gen])
                 # input_seqs = input_seqs + \
                 #     np.zeros(
-                #         shape=(self.config.batch_size, self.config.time_steps, self.config.lstm_input_gen), 
+                #         shape=(batch_size, self.config.time_steps, self.config.lstm_input_gen), 
                 #         )
 
                 # outputs, _ = tf.nn.dynamic_rnn(
                 #     cell, 
                 #     input_seqs,
-                #     initial_state=cell.zero_state(self.config.batch_size, dtype=tf.float32),
+                #     initial_state=cell.zero_state(batch_size, dtype=tf.float32),
                 #     dtype=tf.float32,
                 #     )
 
@@ -110,20 +107,20 @@ class SeqGAN(BaseModel):
                 Not compatible with tf 1.4.1
                 '''
                 def initialize():
-                    next_inputs = tf.concat([embedding_latent, self.start], axis=1)
+                    next_inputs = tf.concat([embedding_latent, start], axis=1)
                     next_inputs = tf.nn.leaky_relu(tf.matmul(next_inputs, wi) + bi)
-                    finished = tf.tile([False], [self.config.batch_size])
+                    finished = tf.tile([False], [batch_size])
                     return (finished, next_inputs)
 
                 def sample(time, outputs, state):
-                    samples = tf.tile([0], [self.config.batch_size])
+                    samples = tf.tile([0], [batch_size])
                     return samples
 
                 def next_inputs(time, outputs, state, sample_ids):
                     
                     next_inputs = tf.concat([embedding_latent, outputs], axis=1)
                     next_inputs = tf.nn.leaky_relu(tf.matmul(next_inputs, wi) + bi)
-                    finished = tf.tile([False], [self.config.batch_size])
+                    finished = tf.tile([False], [batch_size])
 
                     # return (finished, next_inputs, next_state)
                     return (finished, next_inputs, state)
@@ -139,12 +136,13 @@ class SeqGAN(BaseModel):
                 decoder = tf.contrib.seq2seq.BasicDecoder(
                     cell=cell,
                     helper=helper,
-                    initial_state=cell.zero_state(self.config.batch_size, tf.float32),
+                    initial_state=cell.zero_state(batch_size, tf.float32),
                     output_layer=tf.layers.Dense(
                             units=self.config.sequence_width,
                             activation=tf.nn.leaky_relu,
                             kernel_initializer=tf.random_normal_initializer(),
                             bias_initializer=tf.random_normal_initializer(),
+                            name="output_embedding",
                         ),
                     )
                 outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
@@ -160,7 +158,7 @@ class SeqGAN(BaseModel):
                 Do not use
                 '''
                 # outputs = []
-                # rnn_state = cell.zero_state(self.config.batch_size, dtype=tf.float32)
+                # rnn_state = cell.zero_state(batch_size, dtype=tf.float32)
                 # rnn_out = self.start
                 # for i in range(self.config.time_steps):
                 #     # reuse set
@@ -236,7 +234,7 @@ class SeqGAN(BaseModel):
         self.epsilon = tf.constant(1e-8)
         self.create_placeholders()
 
-        out_gen = self.out_gen = self.generator_network(self.latent, True)
+        out_gen = self.out_gen = self.generator_network(self.latent, self.start, True)
 
         disc_out_gen = self.disc_out_gen = self.discriminator_network(out_gen, True)
         disc_out_target = self.disc_out_target = self.discriminator_network(self.data)
