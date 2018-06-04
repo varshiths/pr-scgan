@@ -1,6 +1,6 @@
 {
   "num_epochs": 10000,
-  "batch_size": 32,
+  "batch_size": 4,
 
   "nfiles": -1,
 
@@ -22,7 +22,7 @@
   "lstm_layers_disc" : 3,
 
   "learning_rate": 0.001,
-  "disc_ascents": 3,
+  "disc_ascents": 2,
   "gen_descents": 1,
   "max_grad": 10,
 
