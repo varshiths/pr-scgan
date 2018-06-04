@@ -36,6 +36,11 @@ def main(argv):
 
 	# build config
 	config = process_config(FLAGS.config)
+	session_config = tf.ConfigProto(
+		allow_soft_placement=True,
+		log_device_placement=False,
+		)
+
 
 	if FLAGS.dataset == "mnist":
 		data = MNIST(config)
@@ -62,7 +67,7 @@ def main(argv):
 		else:
 			model = BaseModel(config)
 
-		with tf.Session() as session:
+		with tf.Session(config=session_config) as session:
 
 			if FLAGS.model is None:
 				session.run(tf.global_variables_initializer())
