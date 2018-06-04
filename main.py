@@ -35,7 +35,7 @@ FLAGS = flags.FLAGS
 def main(argv):
 
 	# build config
-	config = process_config(FLAGS.config)
+	config = process_config(FLAGS.config); config.train_phase = "train" == FLAGS.mode
 	session_config = tf.ConfigProto(
 		allow_soft_placement=True,
 		log_device_placement=False,

@@ -25,28 +25,6 @@ class SeqGAN(BaseModel):
                 shape=[self.config.batch_size, self.config.sequence_width]
             )
 
-    def cnn_unit(params, activation=None, padding="SAME"):
-
-        def get_variable(filt_dim, scope):
-            return tf.get_variable(scope + "/filter", filt_dim)
-
-        def function(inp):
-            out = inp
-            for i, (filt_dim, strides, dilations) in enumerate(params):
-                out = tf.nn.conv2d(
-                    out, 
-                    get_variable(filt_dim, "conv%d" % (i)), 
-                    data_format="NCHW",
-                    strides=strides,
-                    dilations=dilations,
-                    padding=padding
-                    )
-                if activation is not None:
-                    out = tf.nn.leaky_relu(out)
-            return out
-
-        return function
-
     def rnn_unit(num_units, num_layers, keep_prob):
 
         def rnn_cell():
@@ -68,7 +46,9 @@ class SeqGAN(BaseModel):
                 w = tf.get_variable("weight", [self.config.latent_state_size, self.config.embedding_latent])
                 b = tf.get_variable("bias", [self.config.embedding_latent])
 
-                embedding_latent = tf.nn.leaky_relu( tf.matmul(state, w) + b )
+                embedding_latent = tf.matmul(state, w) + b
+                embedding_latent = tf.contrib.layers.batch_norm(embedding_latent, is_training=self.config.train_phase)
+                embedding_latent = tf.nn.leaky_relu(embedding_latent)
 
             with tf.variable_scope("rnn", reuse=None) as rnn_scope:
                 cell = SeqGAN.rnn_unit(
@@ -108,7 +88,9 @@ class SeqGAN(BaseModel):
                 '''
                 def initialize():
                     next_inputs = tf.concat([embedding_latent, start], axis=1)
-                    next_inputs = tf.nn.leaky_relu(tf.matmul(next_inputs, wi) + bi)
+                    next_inputs = tf.matmul(next_inputs, wi) + bi
+                    next_inputs = tf.contrib.layers.batch_norm(next_inputs, is_training=self.config.train_phase)
+                    next_inputs = tf.nn.leaky_relu(next_inputs)
                     finished = tf.tile([False], [batch_size])
                     return (finished, next_inputs)
 
@@ -139,7 +121,7 @@ class SeqGAN(BaseModel):
                     initial_state=cell.zero_state(batch_size, tf.float32),
                     output_layer=tf.layers.Dense(
                             units=self.config.sequence_width,
-                            activation=tf.nn.leaky_relu,
+                            activation=tf.nn.tanh,
                             kernel_initializer=tf.random_normal_initializer(),
                             bias_initializer=tf.random_normal_initializer(),
                             name="output_embedding",
@@ -179,23 +161,46 @@ class SeqGAN(BaseModel):
             self.gen_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator")
         return outputs
 
+    def cnn_unit(params, activation=None, padding="SAME", scope=""):
+
+        def get_variable(filt_dim, scope):
+            return tf.get_variable(scope + "/filter", filt_dim)
+
+        def function(inp):
+            out = inp
+            for i, (filt_dim, strides, dilations) in enumerate(params):
+                out = tf.nn.conv2d(
+                    out, 
+                    get_variable(filt_dim, scope+"/conv%d" % (i)), 
+                    data_format="NCHW",
+                    strides=strides,
+                    dilations=dilations,
+                    padding=padding
+                    )
+                if activation is not None:
+                    out = tf.nn.leaky_relu(out)
+            return out
+
+        return function
+
     def discriminator_network(self, seq, define=False):
 
         with tf.variable_scope("discriminator", reuse=(not define)):
 
+            seq = tf.reshape(seq, [-1, 1, self.config.time_steps, self.config.sequence_width])
+
             layers_params = [
                 ([5, 5, 1, 3], [1, 1, 1, 1], [1, 1, 1, 1]),
-                ([5, 5, 3, 5], [1, 1, 1, 1], [1, 1, 1, 1]),
-                ([5, 5, 5, 3], [1, 1, 1, 1], [1, 1, 1, 1]),
-                ([5, 5, 3, 1], [1, 1, 1, 1], [1, 1, 1, 1])
+                ([5, 5, 3, 1], [1, 1, 1, 1], [1, 1, 1, 1]),
             ]
+            cnn_unit_disc0 = SeqGAN.cnn_unit(layers_params, "leaky_relu", "SAME", "block0")
 
-            cnn_unit_disc = SeqGAN.cnn_unit(layers_params, "leaky_relu", "SAME")
+            out_cnn = cnn_unit_disc0(seq)
+            out_cnn += seq
 
-            seq = tf.reshape(seq, [-1, 1, self.config.time_steps, self.config.sequence_width])
-            out_cnn = cnn_unit_disc(seq)
+            cnn_unit_disc1 = SeqGAN.cnn_unit(layers_params, "leaky_relu", "SAME", "block1")
 
-            # skip connection
+            out_cnn = cnn_unit_disc1(out_cnn)
             out_cnn += seq
             
             out_pool = tf.reshape(
@@ -209,10 +214,14 @@ class SeqGAN(BaseModel):
                 )
             
             with tf.variable_scope("prob_embed"):
-                w = tf.get_variable("weight", [self.config.sequence_width, 1])
-                b = tf.get_variable("bias", [1])
+                w0 = tf.get_variable("weight0", [self.config.sequence_width, 100])
+                b0 = tf.get_variable("bias0", [100])
 
-                out = tf.nn.sigmoid( tf.matmul(out_pool, w) + b )
+                w1 = tf.get_variable("weight1", [100, 1])
+                b1 = tf.get_variable("bias1", [1])
+
+                out = tf.nn.leaky_relu( tf.matmul(out_pool, w0) + b0 )
+                out = tf.nn.sigmoid( tf.matmul(out, w1) + b1 )
                 out = tf.reshape(out, [-1])
 
         if define:
