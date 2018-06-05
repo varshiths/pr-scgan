@@ -235,8 +235,10 @@ class SeqGAN(BaseModel):
 
     def discriminator_cost(self, discval_gen, discval_target, _gen, _target):
 
-        ep = tf.random_uniform(shape=[self.config.batch_size, 1, 1], minval=0, maxval=1)
-        x = tf.get_variable("grad_penatly_param", [self.config.batch_size, self.config.time_steps, self.config.sequence_width])
+        batch_size = _target.shape[0].value
+
+        ep = tf.random_uniform(shape=[batch_size, 1, 1], minval=0, maxval=1)
+        x = tf.get_variable("grad_penatly_param", [batch_size, self.config.time_steps, self.config.sequence_width])
         x = tf.assign(x, _target*ep + _gen*(1-ep))
 
         disc_x = self.discriminator_network(x)
