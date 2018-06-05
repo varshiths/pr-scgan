@@ -238,8 +238,10 @@ class SeqGAN(BaseModel):
         batch_size = _target.shape[0].value
 
         ep = tf.random_uniform(shape=[batch_size, 1, 1], minval=0, maxval=1)
-        x = tf.get_variable("grad_penatly_param", [batch_size, self.config.time_steps, self.config.sequence_width])
-        x = tf.assign(x, _target*ep + _gen*(1-ep))
+        with tf.variable_scope("cost", reuse=tf.AUTO_REUSE):
+            x = tf.get_variable("temp", [batch_size, self.config.time_steps, self.config.sequence_width])
+            x = tf.assign(x, _target*ep + _gen*(1-ep))
+        # x = tf.Variable(_target*ep + _gen*(1-ep))
 
         disc_x = self.discriminator_network(x)
         grads = tf.gradients(disc_x, x)[0]
