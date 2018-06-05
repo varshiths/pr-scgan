@@ -1,5 +1,5 @@
 {
-  "num_epochs": 10000,
+  "num_epochs": 18000,
   "ngpus": 1,
   "batch_size": 16,
 
@@ -23,13 +23,13 @@
   "lstm_layers_disc" : 3,
 
   "learning_rate": 0.001,
-  "disc_ascents": 2,
+  "disc_ascents": 1,
   "gen_descents": 1,
   "max_grad": 10,
 
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
 
-  "checkpoint_dir": "save/seqgan/",
+  "checkpoint_dir": "save/seqgan-shuwa/",
   "max_to_keep": 5,
   
   "dummy":0
