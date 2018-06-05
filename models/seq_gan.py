@@ -221,7 +221,7 @@ class SeqGAN(BaseModel):
                 b1 = tf.get_variable("bias1", [1])
 
                 out = tf.nn.leaky_relu( tf.matmul(out_pool, w0) + b0 )
-                out = tf.nn.sigmoid( tf.matmul(out, w1) + b1 )
+                out = tf.matmul(out, w1) + b1
                 out = tf.reshape(out, [-1])
 
         if define:
@@ -230,16 +230,20 @@ class SeqGAN(BaseModel):
 
     def generator_cost(self, prob_image_gen):
 
-        logt = tf.log( prob_image_gen + self.epsilon )
-        cost = -tf.reduce_mean(logt)
+        cost = -1 * tf.reduce_mean(prob_image_gen)
         return cost
 
-    def discriminator_cost(self, prob_image_gen, prob_image_target):
+    def discriminator_cost(self, discval_gen, discval_target, _gen, _target):
 
-        logtg = tf.log( 1 - prob_image_gen + self.epsilon )
-        logtt = tf.log( prob_image_target + self.epsilon )
+        ep = tf.random_uniform(shape=[self.config.batch_size, 1, 1], minval=0, maxval=1)
+        x = tf.get_variable("grad_penatly_param", [self.config.batch_size, self.config.time_steps, self.config.sequence_width])
+        x = tf.assign(x, _target*ep + _gen*(1-ep))
 
-        cost = -tf.reduce_mean( logtt + logtg )
+        disc_x = self.discriminator_network(x)
+        grads = tf.gradients(disc_x, x)[0]
+        grad_error = tf.square(tf.norm(grads, axis=[1,2]) - 1)
+
+        cost = tf.reduce_mean(discval_gen-discval_target) + self.config.grad_penalty_weight*tf.reduce_mean(grad_error)
         return cost
 
     def build_model(self):
@@ -272,7 +276,7 @@ class SeqGAN(BaseModel):
                         disc_out_target = self.discriminator_network(data)
 
                         gen_cost = self.generator_cost(disc_out_gen)
-                        disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target)
+                        disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target, out_gen, data)
 
                         gen_grads = self.compute_and_clip_gradients(gen_cost, self.gen_vars)
                         disc_grads = self.compute_and_clip_gradients(disc_cost, self.disc_vars)
