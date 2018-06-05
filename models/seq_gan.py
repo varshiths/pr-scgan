@@ -287,13 +287,17 @@ class SeqGAN(BaseModel):
         disc_grads = average_gradients(disc_grads_list)
 
         # defining optimizer
-        optimizer = tf.train.AdamOptimizer(
+        optimizer_gen = tf.train.AdamOptimizer(
             learning_rate=self.config.learning_rate
         )
 
+        optimizer_disc = tf.train.GradientDescentOptimizer(
+            learning_rate=self.config.learning_rate/2
+        )
+
         # main step fetches
-        self.gen_grad_step = optimizer.apply_gradients(zip( gen_grads, self.gen_vars ))
-        self.disc_grad_step = optimizer.apply_gradients(zip( disc_grads, self.disc_vars ))
+        self.gen_grad_step = optimizer_gen.apply_gradients(zip( gen_grads, self.gen_vars ))
+        self.disc_grad_step = optimizer_disc.apply_gradients(zip( disc_grads, self.disc_vars ))
 
         # setting other informative fetches
         self.out_gen = tf.stack(out_gen, axis=0)
