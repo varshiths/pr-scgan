@@ -48,11 +48,12 @@ class BaseModel:
                 )
             print("---------------------------------------------------")
 
-        try:
+        if  os.path.exists(model_path + ".meta") and \
+            os.path.exists(model_path + ".index"):
             # self.saver = tf.train.import_meta_graph( model_path + '.meta' )
             self.saver.restore(sess, model_path)
             print("Model loaded")
-        except Exception as e:
+        else:
             print("File not found ... Random initialization ...")
             sess.run(tf.global_variables_initializer())
 
