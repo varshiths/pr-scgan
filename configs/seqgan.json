@@ -23,8 +23,8 @@
   "lstm_layers_disc" : 3,
 
   "learning_rate": 0.001,
-  "disc_ascents": 5,
-  "gen_descents": 1,
+  "disc_ascents": 1,
+  "gen_descents": 5,
   "max_grad": 10,
 
   "grad_penalty_weight": 10.0,

@@ -5,6 +5,6 @@ time python3 main.py \
 	--config configs/seqgan.json \
 	--architecture seqgan \
 	--mode train \
-	--model wgan0 \
-	--save wgan0 \
+	--model trial1 \
+	--save trial1 \
 	--test_index 1 \
