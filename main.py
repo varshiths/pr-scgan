@@ -69,9 +69,8 @@ def main(argv):
 
 		with tf.Session(config=session_config) as session:
 
-			if FLAGS.model is None:
-				session.run(tf.global_variables_initializer())
-			else:
+			session.run(tf.global_variables_initializer())
+			if FLAGS.model is not None:
 				model.load(session, FLAGS.model)
 
 			if FLAGS.mode == "train":

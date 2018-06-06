@@ -65,7 +65,8 @@ class BaseModel:
 
     def init_saver(self):
         # just copy the following line in your child class
-        self.saver = tf.train.Saver()
+        varlist = tf.trainable_variables()
+        self.saver = tf.train.Saver(varlist)
 
     def build_model(self):
         pass
