@@ -106,5 +106,8 @@ ENV/
 # saved models directory
 save/
 
+# scripts directory
+scripts/
+
 # program profiles
 *.prof
