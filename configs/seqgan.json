@@ -29,7 +29,7 @@
 
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
 
-  "checkpoint_dir": "save/seqgan-shuwa/",
+  "checkpoint_dir": "save/seqgan/",
   "max_to_keep": 5,
   
   "dummy":0

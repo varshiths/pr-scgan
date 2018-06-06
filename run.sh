@@ -5,6 +5,6 @@ time python3 main.py \
 	--config configs/seqgan.json \
 	--architecture seqgan \
 	--mode test \
-	--model bb0 \
-	--save ons1 \
-	--test_index 1 \
+	--model shuwa.wgan0 \
+	--save shuwa.wgan0 \
+	--test_index 2 \

@@ -97,6 +97,9 @@ def main(argv):
 				# JSL GAN Samples
 				elif FLAGS.test_index == 1:
 					run_model_and_plot_gesture(session, model, data, config)
+				# Output GAN Samples as CSV
+				elif FLAGS.test_index == 2:
+					run_model_and_output_csv(session, model, data, config, "output")
 
 
 if __name__ == '__main__':

@@ -100,14 +100,18 @@ ENV/
 # mypy
 .mypy_cache/
 
-# data directories
-*_data/
-
-# saved models directory
-save/
-
-# scripts directory
-scripts/
-
 # program profiles
 *.prof
+
+# data directories
+*_data/
+# saved models directory
+save/
+# scripts directory
+scripts/
+# gesture files 
+*.csv
+*.bvh
+output/
+
+*.temp
