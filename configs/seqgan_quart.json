@@ -1,0 +1,38 @@
+{
+  "num_epochs": 18000,
+  "ngpus": 1,
+  "batch_size": 16,
+
+  "nfiles": 4,
+
+  "time_steps": 375,
+  "sequence_length": 750,
+
+  "sequence_width": 107,
+  
+  "latent_state_size": 1000,
+  "embedding_latent": 2000,
+
+  "keep_prob" : 0.2,
+
+  "lstm_input_gen" : 1000,
+  "lstm_units_gen" : 1000,
+  "lstm_layers_gen" : 3,
+  
+  "lstm_units_disc" : 1000,
+  "lstm_layers_disc" : 3,
+
+  "learning_rate": 0.001,
+  "disc_ascents": 1,
+  "gen_descents": 5,
+  "max_grad": 10,
+
+  "grad_penalty_weight": 10.0,
+
+  "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
+
+  "checkpoint_dir": "save/seqgan_quart/",
+  "max_to_keep": 5,
+  
+  "dummy":0
+}

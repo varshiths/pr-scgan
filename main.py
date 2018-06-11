@@ -10,7 +10,9 @@ import tensorflow as tf
 from models import *
 from utils.config import process_config
 from utils.tests import *
+from utils.tests_quart import *
 from data import MNIST, JSL
+from data.utils import *
 
 import numpy as np
 
@@ -97,6 +99,8 @@ def main(argv):
 				# JSL GAN Samples
 				elif FLAGS.test_index == 1:
 					run_model_and_plot_gesture(session, model, data, config)
+				elif FLAGS.test_index == 2:
+					run_quart_model_and_plot_gesture(session, model, data, config)
 
 
 if __name__ == '__main__':

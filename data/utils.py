@@ -1,6 +1,7 @@
 import os
 import csv
 import numpy as np
+from pyquaternion import Quaternion as qt
 
 
 def num_elements(shape):
@@ -34,3 +35,13 @@ def general_pad(x, target_length):
 		return np.pad(x, [ (0,pads), (0,0) ], 'constant')
 	else:
 		return x[:target_length, :]
+
+def euler_to_quart(a):
+
+	z, x, y = a
+
+	return x, y, z, z
+
+def quart_to_euler(a):
+
+	return a[0], a[1], a[2]
