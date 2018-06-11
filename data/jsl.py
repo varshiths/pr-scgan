@@ -65,16 +65,11 @@ class JSL(BaseData):
 
 		return [data_train, data_means]
 		
-	def denormalise(self, data):
+	def denormalise(self, data_org):
 
-		_shape = data.shape
-
-		data = np.apply_along_axis(quart_to_euler, -1, data)
-		data = np.reshape(data, (_shape[0], _shape[1], -1))
-		
+		_shape = data_org.shape
+		data = np.apply_along_axis(quart_to_euler, -1, data_org)
 		pos = np.broadcast_to(self.data_means, (_shape[0], _shape[1], _shape[2], 3))
-		pos = np.broadcast_to(pos, (_shape[0], _shape[1], -1))
-
 		ret = np.concatenate((pos, data), axis=-1)
 		
 		return ret

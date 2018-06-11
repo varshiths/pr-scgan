@@ -4,7 +4,7 @@ import numpy as np
 from .utils import *
 
 
-def run_with_feed(sess, model, data, feed, start=None):
+def run_with_feed_and_denormalize(sess, model, data, feed, start=None):
 	
 	fetches = {
 		"out": model.out_gen.name,
@@ -28,7 +28,7 @@ def run_model_and_plot_image(sess, model, data, config):
 		return np.reshape(data, (-1,28,28))
 
 	samples = np.random.randn(25, config.latent_state_size)
-	image = squarify(run_with_feed(sess, model, data, samples))
+	image = squarify(run_with_feed_and_denormalize(sess, model, data, samples))
 
 	print("Plotting Samples")
 	fig=plt.figure(1, figsize=(28, 28))
@@ -45,8 +45,8 @@ def run_model_and_plot_image(sess, model, data, config):
 
 	n_interp = 4
 
-	direct_int = squarify(run_with_feed(sess, model, data, interpolate(point1, point2, n_interp)))
-	spher_int = squarify(run_with_feed(sess, model, data, spher_interpolate(point1, point2, n_interp)))
+	direct_int = squarify(run_with_feed_and_denormalize(sess, model, data, interpolate(point1, point2, n_interp)))
+	spher_int = squarify(run_with_feed_and_denormalize(sess, model, data, spher_interpolate(point1, point2, n_interp)))
 
 	print("Plotting Interpolations")
 	fig2=plt.figure(2)
@@ -65,7 +65,7 @@ def run_model_and_plot_gesture(sess, model, data, config):
 
 	samples = np.random.randn(config.batch_size, config.latent_state_size)
 	start = np.zeros((config.batch_size, config.sequence_width))
-	gesture = data.denormalise(run_with_feed(sess, model, data, samples, start))
+	gesture = run_with_feed_and_denormalize(sess, model, data, samples, start)
 
 	print("Plotting samples")
 	fig=plt.figure(1)
