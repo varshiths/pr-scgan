@@ -89,9 +89,9 @@ def euler_to_quart(a):
     z, x, y = a
     matrix = eulerAnglesToRotationMatrix((x,y,z))
     qrt = Quaternion(matrix=matrix)
-    qrt = (int(qrt[0]<0)*2-1) * qrt
+    qrt = (int(qrt[0]>0)*2-1) * qrt
 
-    return qrt
+    return qrt[0], qrt[1], qrt[2], qrt[3]
 
 def quart_to_euler(a):
 

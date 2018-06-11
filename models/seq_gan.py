@@ -24,6 +24,7 @@ class SeqGAN(BaseModel):
                 dtype=tf.float32,
                 shape=[self.config.batch_size, self.config.sequence_width, 4]
             )
+        self.start_token = tf.random_normal((self.config.batch_size, self.config.sequence_width, 4))
 
     def rnn_unit(num_units, num_layers, keep_prob):
 
@@ -291,9 +292,11 @@ class SeqGAN(BaseModel):
             self.disc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
         return out
 
-    def generator_cost(self, prob_image_gen):
+    def generator_cost(self, discval_gen, _gen):
 
-        cost = -1 * tf.reduce_mean(prob_image_gen)
+        cost = -1 * tf.reduce_mean(discval_gen)
+        differences = _gen[:,1:,:,:]-_gen[:,:-1,:,:]
+        cost += self.config.smoothness_weight * tf.reduce_mean(differences, axis=(1,2,3))
         return cost
 
     def discriminator_cost(self, discval_gen, discval_target, _gen, _target):
@@ -342,7 +345,7 @@ class SeqGAN(BaseModel):
                         disc_out_gen = self.discriminator_network(out_gen, i==0)
                         disc_out_target = self.discriminator_network(data)
 
-                        gen_cost = self.generator_cost(disc_out_gen)
+                        gen_cost = self.generator_cost(disc_out_gen, out_gen)
                         disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target, out_gen, data)
 
                         gen_grads = self.compute_and_clip_gradients(gen_cost, self.gen_vars)

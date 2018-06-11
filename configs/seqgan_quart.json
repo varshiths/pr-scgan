@@ -3,7 +3,7 @@
   "ngpus": 1,
   "batch_size": 16,
 
-  "nfiles": 4,
+  "nfiles": -1,
 
   "time_steps": 375,
   "sequence_length": 750,
@@ -28,6 +28,7 @@
   "max_grad": 10,
 
   "grad_penalty_weight": 10.0,
+  "smoothness_weight": 1.0,
 
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
 

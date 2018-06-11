@@ -11,8 +11,6 @@ def run_quart_model_and_plot_gesture(sess, model, data, config):
 	start = np.zeros((config.batch_size, config.sequence_width, 4))
 	gesture = run_with_feed_and_denormalize(sess, model, data, samples, start)
 
-	gesture = np.reshape(gesture, [config.batch_size, config.time_steps, -1])
-
 	fig=plt.figure(1)
 	columns = 3
 	rows = 1
@@ -35,3 +33,15 @@ def run_quart_model_and_plot_gesture(sess, model, data, config):
 	#     plt.colorbar()
 
 	plt.show()
+
+def run_quart_model_and_output_csv(sess, model, data, config, dirname):
+
+	print("Writing Quart Variations")
+	samples = np.random.randn(config.batch_size, config.latent_state_size)
+	start = np.zeros((config.batch_size, config.sequence_width, 4))
+	gesture = run_with_feed_and_denormalize(sess, model, data, samples, start)
+
+	create_dirs([dirname])
+
+	for i in range(gesture.shape[0]):
+		np.savetxt("%s/gesture.%d.csv" % (dirname, i), np.transpose(gesture[i, :, :]), delimiter=",")

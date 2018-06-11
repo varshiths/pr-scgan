@@ -4,7 +4,7 @@ time python3 main.py \
 	--dataset jsl \
 	--architecture seqgan \
 	--config configs/seqgan_quart.json \
-	--model trial1 \
-	--model shuwa.wgan0 \
-	--save shuwa.wgan0 \
-	--test_index 2 \
+	--model qwgan0 \
+	--save qwgan0 \
+	--mode train \
+	--test_index 4 \
