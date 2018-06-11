@@ -5,6 +5,6 @@ time python3 main.py \
 	--architecture seqgan \
 	--config configs/seqgan_quart.json \
 	--model trial1 \
-	--save trial1 \
-	--mode test \
+	--model shuwa.wgan0 \
+	--save shuwa.wgan0 \
 	--test_index 2 \
