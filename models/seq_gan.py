@@ -296,7 +296,8 @@ class SeqGAN(BaseModel):
 
         cost = -1 * tf.reduce_mean(discval_gen)
         differences = _gen[:,1:,:,:]-_gen[:,:-1,:,:]
-        cost += self.config.smoothness_weight * tf.reduce_mean(differences, axis=(1,2,3))
+        diff_cost = tf.reduce_mean(tf.norm(differences, axis=[2,3]))
+        cost += self.config.smoothness_weight * diff_cost
         return cost
 
     def discriminator_cost(self, discval_gen, discval_target, _gen, _target):
