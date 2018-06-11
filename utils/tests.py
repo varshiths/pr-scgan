@@ -66,7 +66,7 @@ def run_model_and_plot_gesture(sess, model, data, config):
 
 	samples = np.random.randn(config.batch_size, config.latent_state_size)
 	start = np.zeros((config.batch_size, config.sequence_width))
-	gesture = data.denormalise(run_with_feed(sess, model, data, samples, start))
+	gesture = run_with_feed(sess, model, data, samples, start)
 
 	print("Plotting samples")
 	fig=plt.figure(1)
@@ -96,7 +96,7 @@ def run_model_and_output_csv(sess, model, data, config, dirname):
 
 	samples = np.random.randn(config.batch_size, config.latent_state_size)
 	start = np.zeros((config.batch_size, config.sequence_width))
-	gesture = data.denormalise(run_with_feed(sess, model, data, samples, start))
+	gesture = run_with_feed(sess, model, data, samples, start)
 
 	create_dirs([dirname])
 
