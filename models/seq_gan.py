@@ -294,10 +294,11 @@ class SeqGAN(BaseModel):
 
     def generator_cost(self, discval_gen, _gen):
 
-        cost = -1 * tf.reduce_mean(discval_gen)
-        differences = _gen[:,1:,:,:]-_gen[:,:-1,:,:]
-        diff_cost = tf.reduce_mean(tf.norm(differences, axis=[2,3]))
-        cost += self.config.smoothness_weight * diff_cost
+        batch_size = discval_gen.shape[0].value
+        
+        differences = tf.reshape(_gen[:,1:,:,:]-_gen[:,:-1,:,:], [batch_size, -1])
+        diff_cost = tf.reduce_mean(tf.sqrt(tf.reduce_mean(tf.square(differences), axis=1)))
+        cost = -tf.reduce_mean(discval_gen) + self.config.smoothness_weight*diff_cost
         return cost
 
     def discriminator_cost(self, discval_gen, discval_target, _gen, _target):
@@ -311,10 +312,11 @@ class SeqGAN(BaseModel):
         # x = tf.Variable(_target*ep + _gen*(1-ep))
 
         disc_x = self.discriminator_network(x)
-        grads = tf.gradients(disc_x, x)[0]
-        grad_error = tf.square(tf.norm(grads, axis=[1,2]) - 1)
+        grads = tf.reshape(tf.gradients(disc_x, x)[0], [batch_size, -1])
+        grad_error = tf.reduce_mean(tf.square(tf.norm(grads, axis=1) - 1))
 
-        cost = tf.reduce_mean(discval_gen-discval_target) + self.config.grad_penalty_weight*tf.reduce_mean(grad_error)
+        cost = tf.reduce_mean(discval_gen)-tf.reduce_mean(discval_target) + \
+                self.config.grad_penalty_weight*tf.reduce_mean(grad_error)
         return cost
 
     def build_model(self):
@@ -366,7 +368,7 @@ class SeqGAN(BaseModel):
             learning_rate=self.config.learning_rate
         )
 
-        optimizer_disc = tf.train.GradientDescentOptimizer(
+        optimizer_disc = tf.train.AdamOptimizer(
             learning_rate=self.config.learning_rate/2
         )
 
