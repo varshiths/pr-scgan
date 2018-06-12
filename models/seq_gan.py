@@ -54,6 +54,7 @@ class SeqGAN(BaseModel):
             def quart_activation(inp):
 
                 actv = tf.reshape(inp, [-1, 4])
+                actv = tf.contrib.layers.batch_norm(actv, is_training=self.config.train_phase)
                 # make updates to first column of quart
                 actv = tf.concat([
                         tf.nn.softplus(actv[:, :1]),
@@ -106,7 +107,12 @@ class SeqGAN(BaseModel):
                     start_shaped = tf.reshape(start, [batch_size, -1])
                     next_inputs = tf.concat([embedding_latent, start_shaped], axis=1)
                     next_inputs = tf.matmul(next_inputs, wi) + bi
-                    next_inputs = tf.contrib.layers.batch_norm(next_inputs, is_training=self.config.train_phase)
+                    next_inputs = tf.contrib.layers.batch_norm(
+                        next_inputs, 
+                        is_training=self.config.train_phase,
+                        scope="token_batchnorm",
+                        reuse=False,
+                        )
                     next_inputs = tf.nn.leaky_relu(next_inputs)
                     finished = tf.tile([False], [batch_size])
                     return (finished, next_inputs)
@@ -118,7 +124,14 @@ class SeqGAN(BaseModel):
                 def next_inputs(time, outputs, state, sample_ids):
                     
                     next_inputs = tf.concat([embedding_latent, outputs], axis=1)
-                    next_inputs = tf.nn.leaky_relu(tf.matmul(next_inputs, wi) + bi)
+                    next_inputs = tf.matmul(next_inputs, wi) + bi
+                    next_inputs = tf.contrib.layers.batch_norm(
+                        next_inputs, 
+                        is_training=self.config.train_phase,
+                        scope="token_batchnorm",
+                        reuse=True,
+                        )
+                    next_inputs = tf.nn.leaky_relu(next_inputs)
                     finished = tf.tile([False], [batch_size])
 
                     # return (finished, next_inputs, next_state)
@@ -259,31 +272,34 @@ class SeqGAN(BaseModel):
             out = tf.layers.dense(
                     inputs=out,
                     units=300,
-                    activation=tf.nn.leaky_relu,
+                    activation=None,
                     kernel_initializer=tf.random_normal_initializer(),
                     bias_initializer=tf.random_normal_initializer(),
                 )
+            out = tf.contrib.layers.batch_norm(out, is_training=self.config.train_phase, activation_fn=tf.nn.leaky_relu)
             out = tf.layers.dense(
                     inputs=out,
                     units=100,
-                    activation=tf.nn.leaky_relu,
+                    activation=None,
                     kernel_initializer=tf.random_normal_initializer(),
                     bias_initializer=tf.random_normal_initializer(),
                 )
+            out = tf.contrib.layers.batch_norm(out, is_training=self.config.train_phase, activation_fn=tf.nn.leaky_relu)
 
             # ff across time
             out = tf.reshape(out, [batch_size, -1])
             out = tf.layers.dense(
                     inputs=out,
                     units=1000,
-                    activation=tf.nn.leaky_relu,
+                    activation=None,
                     kernel_initializer=tf.random_normal_initializer(),
                     bias_initializer=tf.random_normal_initializer(),
                 )
+            out = tf.contrib.layers.batch_norm(out, is_training=self.config.train_phase, activation_fn=tf.nn.leaky_relu)
             out = tf.layers.dense(
                     inputs=out,
                     units=1,
-                    activation=tf.nn.leaky_relu,
+                    activation=None,
                     kernel_initializer=tf.random_normal_initializer(),
                     bias_initializer=tf.random_normal_initializer(),
                 )
@@ -295,7 +311,7 @@ class SeqGAN(BaseModel):
     def generator_cost(self, discval_gen, _gen):
 
         batch_size = discval_gen.shape[0].value
-        
+
         differences = tf.reshape(_gen[:,1:,:,:]-_gen[:,:-1,:,:], [batch_size, -1])
         diff_cost = tf.reduce_mean(tf.sqrt(tf.reduce_mean(tf.square(differences), axis=1)))
         cost = -tf.reduce_mean(discval_gen) + self.config.smoothness_weight*diff_cost
@@ -392,6 +408,10 @@ class SeqGAN(BaseModel):
         return clipped_grads
 
     def build_validation_metrics(self):
+
+        pp.pprint(self.gen_vars)
+        pp.pprint(self.disc_vars)
+
         pass
 
 def average_gradients(grads):
