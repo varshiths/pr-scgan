@@ -221,52 +221,65 @@ class SeqGAN(BaseModel):
 
         with tf.variable_scope("discriminator", reuse=(not define)):
 
+            # import pdb
+            # pdb.set_trace()
+
             batch_size = seq.shape[0].value
 
             # Convolution with pooling
-            # Do not use
             # Features are not spacially correlated
-            '''
-            seq = tf.reshape(seq, [-1, 1, self.config.time_steps, self.config.sequence_width*4])
+            out_cnn = tf.reshape(seq, [-1, 1, self.config.time_steps, self.config.sequence_width*4])
 
-            layers_params = [
-                ([5, 5, 1, 3], [1, 1, 1, 1], [1, 1, 1, 1]),
-                ([5, 5, 3, 1], [1, 1, 1, 1], [1, 1, 1, 1]),
-            ]
-            cnn_unit_disc0 = SeqGAN.cnn_unit(layers_params, "leaky_relu", "SAME", "block0")
+            lp0 = [([10, 4,  1, 4 * 10], [1, 1, 2, 4], [1, 1, 2, 1]),]
+            lp1 = [([10, 4, 10, 4 * 10], [1, 1, 2, 4], [1, 1, 2, 1]),]
+            lp2 = [([10, 4, 10, 4 * 10], [1, 1, 2, 4], [1, 1, 2, 1]),]
+            lp3 = [([10, 4, 10,      1], [1, 1, 2, 4], [1, 1, 2, 1]),]
+            cnn_unit_disc0 = SeqGAN.cnn_unit(lp0, "leaky_relu", "SAME", "block0")
+            cnn_unit_disc1 = SeqGAN.cnn_unit(lp1, "leaky_relu", "SAME", "block1")
+            cnn_unit_disc2 = SeqGAN.cnn_unit(lp2, "leaky_relu", "SAME", "block2")
+            cnn_unit_disc3 = SeqGAN.cnn_unit(lp3, "leaky_relu", "SAME", "block3")
 
-            out_cnn = cnn_unit_disc0(seq)
-            out_cnn += seq
-
-            cnn_unit_disc1 = SeqGAN.cnn_unit(layers_params, "leaky_relu", "SAME", "block1")
+            out_cnn = cnn_unit_disc0(out_cnn)
+            out_cnn = tf.transpose(
+                tf.reshape(out_cnn, [batch_size, 10, 4, out_cnn.shape[2].value, 107]), (0,1,3,4,2))
+            out_cnn = tf.reshape(out_cnn, [batch_size, 10, -1, 428])
 
             out_cnn = cnn_unit_disc1(out_cnn)
-            out_cnn += seq
+            out_cnn = tf.transpose(
+                tf.reshape(out_cnn, [batch_size, 10, 4, out_cnn.shape[2].value, 107]), (0,1,3,4,2))
+            out_cnn = tf.reshape(out_cnn, [batch_size, 10, -1, 428])
+
+            out_cnn = cnn_unit_disc2(out_cnn)
+            out_cnn = tf.transpose(
+                tf.reshape(out_cnn, [batch_size, 10, 4, out_cnn.shape[2].value, 107]), (0,1,3,4,2))
+            out_cnn = tf.reshape(out_cnn, [batch_size, 10, -1, 428])
+
+            out_cnn = cnn_unit_disc3(out_cnn)
             
             out_pool = tf.reshape(
                 tf.nn.avg_pool(
                     out_cnn, 
-                    [1, 1, out_cnn.shape[1].value, 1],
+                    [1, 1, out_cnn.shape[2].value, 1],
                     strides=[1,1,1,1],
                     padding="VALID",
                     ), 
-                [-1, self.config.sequence_width*4]
+                [-1, self.config.sequence_width]
                 )
             
             with tf.variable_scope("prob_embed"):
-                w0 = tf.get_variable("weight0", [self.config.sequence_width*4, 100])
-                b0 = tf.get_variable("bias0", [100])
+                w0 = tf.get_variable("weight0", [self.config.sequence_width, 50])
+                b0 = tf.get_variable("bias0", [50])
 
-                w1 = tf.get_variable("weight1", [100, 1])
+                w1 = tf.get_variable("weight1", [50, 1])
                 b1 = tf.get_variable("bias1", [1])
 
                 out = tf.nn.leaky_relu( tf.matmul(out_pool, w0) + b0 )
                 out = tf.matmul(out, w1) + b1
                 out = tf.reshape(out, [-1])
-            '''
 
             # # Fully connected network
 
+            '''
             # time independent compression of each sequence
             out = tf.reshape(seq, [-1, self.config.sequence_width*4])
             out = tf.layers.dense(
@@ -303,6 +316,7 @@ class SeqGAN(BaseModel):
                     kernel_initializer=tf.random_normal_initializer(),
                     bias_initializer=tf.random_normal_initializer(),
                 )
+            '''
 
         if define:
             self.disc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
