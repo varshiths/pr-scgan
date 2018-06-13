@@ -24,10 +24,10 @@
 
   "learning_rate": 0.001,
   "disc_ascents": 1,
-  "gen_descents": 5,
+  "gen_descents": 1,
   "max_grad": 10,
 
-  "grad_penalty_weight": 10.0,
+  "grad_penalty_weight": 1.0,
   "smoothness_weight": 1.0,
 
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",

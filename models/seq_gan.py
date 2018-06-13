@@ -396,8 +396,8 @@ class SeqGAN(BaseModel):
         self.out_gen = tf.stack(out_gen, axis=0)
         self.gen_cost = tf.reduce_mean(tf.convert_to_tensor(gen_cost))
         self.disc_cost = tf.reduce_mean(tf.convert_to_tensor(disc_cost))
-        self.gen_grads = gen_grads
-        self.disc_grads = disc_grads
+        self.gen_grads = tf.reduce_mean([tf.norm(x) for x in gen_grads])
+        self.disc_grads = tf.reduce_mean([tf.norm(x) for x in disc_grads])
 
         self.build_validation_metrics()
 

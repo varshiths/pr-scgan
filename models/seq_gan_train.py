@@ -22,6 +22,7 @@ class SeqGANTrain(GANTrain):
         fetches = {
             "train_step" : self.model.disc_grad_step,
             "disc_cost" : self.model.disc_cost,
+            "norm" : self.model.disc_grads,
             # "gen_cost" : self.model.gen_cost,
         }
 
@@ -34,7 +35,7 @@ class SeqGANTrain(GANTrain):
         fetched = self.sess.run(fetches, feed)
 
         # print("^ Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
-        print("^ Disc: %f " % (fetched["disc_cost"]))
+        print("^ Disc: %f Norm: %f" % (fetched["disc_cost"], fetched["norm"]))
 
     def gen_step(self):
         
@@ -44,6 +45,7 @@ class SeqGANTrain(GANTrain):
             "train_step" : self.model.gen_grad_step,
             # "disc_cost" : self.model.disc_cost,
             "gen_cost" : self.model.gen_cost,
+            "norm" : self.model.gen_grads,
         }
         
         feed = {
@@ -55,7 +57,7 @@ class SeqGANTrain(GANTrain):
         fetched = self.sess.run(fetches, feed)
 
         # print(". Disc: %f \t Gen: %f" % (fetched["disc_cost"], fetched["gen_cost"]))
-        print(". \t Gen: %f" % (fetched["gen_cost"]))
+        print(". \t Gen: %f Norm: %f" % (fetched["gen_cost"], fetched["norm"]))
 
     def validation_metrics(self):
         pass
