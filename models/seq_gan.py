@@ -57,8 +57,8 @@ class SeqGAN(BaseModel):
                 actv = tf.contrib.layers.batch_norm(actv, is_training=self.config.train_phase)
                 # make updates to first column of quart
                 actv = tf.concat([
-                        tf.nn.softplus(actv[:, :1]),
-                        actv[:, 1:],
+                        tf.nn.sigmoid(actv[:, :1]),
+                        tf.nn.tanh(actv[:, 1:]),
                     ], axis=-1)
                 # normalise for rot quarts
                 actv = actv / tf.norm(actv, axis=-1, keepdims=True)
