@@ -91,6 +91,9 @@ def main(argv):
 					model_train.train()
 				except Exception as e:
 					pass
+				except KeyboardInterrupt as e:
+					print("Interrupted")
+					pass
 
 				if FLAGS.save is not None:
 					model.save(session, FLAGS.save)

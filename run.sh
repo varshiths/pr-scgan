@@ -3,8 +3,8 @@ time python3 main.py \
 	--seed 0 \
 	--dataset jslw \
 	--config configs/seqgan_qw.json \
-	# --architecture seqgan \
-	# --mode test \
-	# --model shuwa.qwgan_v_actv_0 \
-	# --save shuwa.qwgan_v_actv_0 \
+	--architecture seqgan \
+	--mode train \
+	--model qw_conv_disc_phrs_0 \
+	--save qw_conv_disc_phrs_0 \
 	# --test_index 4 \
