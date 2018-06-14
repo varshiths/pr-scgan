@@ -5,8 +5,8 @@
 
   "nfiles": -1,
 
-  "time_steps": 500,
-  "sequence_length": 500,
+  "time_steps": 64,
+  "sequence_length": 64,
 
   "sequence_width": 107,
   
@@ -31,6 +31,7 @@
   "smoothness_weight": 1.0,
 
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
+  "annot_dir": "/home/user/shuwa/home/data/00_Annotations_20180427/",
 
   "checkpoint_dir": "save/seqgan_quart/",
   "max_to_keep": 5,

@@ -11,6 +11,7 @@ class JSL(BaseData):
 	def __init__(self, config):
 		super(JSL, self).__init__(config)
 		self.iter_train = 0
+		self.data_path = "JSLQ_data/data.npy"
 
 		print("Loading data...")
 		# download/load if not already present
@@ -36,20 +37,20 @@ class JSL(BaseData):
 	def load_npy(self):
 		arrays = []
 		npy_present = False
-		if os.path.exists("JSLQ_data/data.npy"):
+		if os.path.exists(self.data_path):
 			npy_present = True
-			arrays = np.load("JSLQ_data/data.npy")
+			arrays = np.load(self.data_path)
 		return npy_present, arrays
 
 	def save_npy(self, arrays):
 
 		print("Saving data to npy files...")
-		np.save("JSLQ_data/data.npy", arrays)
+		np.save(self.data_path, arrays)
 
 	def normalise(self, data):
 
 		print("Downsampling data...")
-		data_train = data[:,::2,:]
+		data_train = data[:,::,:]
 
 		print("Transforming and selecting data...")
 		# saving motion data for later

@@ -11,7 +11,7 @@ from models import *
 from utils.config import process_config
 from utils.tests import *
 from utils.tests_quart import *
-from data import MNIST, JSL
+from data import *
 from data.utils import *
 
 import numpy as np
@@ -48,6 +48,8 @@ def main(argv):
 		data = MNIST(config)
 	elif FLAGS.dataset == "jsl":
 		data = JSL(config)
+	elif FLAGS.dataset == "jslw":
+		data = JSLW(config)
 
 	with tf.Graph().as_default(), tf.device('/cpu:0'):
 
@@ -87,7 +89,7 @@ def main(argv):
 
 				try:
 					model_train.train()
-				except KeyboardInterrupt as e:
+				except Exception as e:
 					pass
 
 				if FLAGS.save is not None:

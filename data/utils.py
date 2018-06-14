@@ -28,13 +28,33 @@ def convert_to_one_hot(data, rang):
 
     return enc_data
 
-def general_pad(x, target_length):
+def general_pad(x, tgt_len):
 
-    pads = target_length-x.shape[0]
+    pads = tgt_len-x.shape[0]
+    pads_2 = int(pads/2)
     if pads >= 0:
-        return np.pad(x, [ (0,pads), (0,0) ], 'constant')
+        return np.pad(x, [ (pads_2,pads-pads_2), (0,0) ], 'edge')
     else:
-        return x[:target_length, :]
+        nds = np.sort(np.random.choice(np.arange(x.shape[0]), tgt_len, replace=False))
+        return x[nds]
+
+def inter_pad(x, tgt_len):
+
+    length = x.shape[0]
+    if length >= tgt_len:
+        # downsample
+        nds = np.sort(np.random.choice(np.arange(length), tgt_len, replace=False))
+        return x[nds]
+    elif 2 * length < tgt_len:
+        # upsample and pad
+        nds = np.sort(np.random.choice(np.arange(length), length+int((tgt_len-length)/2), replace=True))
+        x = x[nds]
+        pads = tgt_len-x.shape[0]; pads_2 = int(pads/2)
+        return np.pad(x, [ (pads_2,pads-pads_2), (0,0) ], 'edge')
+    else:
+        # upsample
+        nds = np.sort(np.random.choice(np.arange(length), tgt_len, replace=True))
+        return x[nds]
 
 def eulerAnglesToRotationMatrix(theta) :
      
