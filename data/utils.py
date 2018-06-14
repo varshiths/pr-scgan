@@ -2,6 +2,7 @@ import os
 import csv
 import numpy as np
 from pyquaternion import Quaternion
+import multiprocessing
 
 
 def num_elements(shape):
@@ -120,3 +121,34 @@ def quart_to_euler(a):
     x, y, z = rotationMatrixToEulerAngles(matrix)
 
     return z, x, y
+
+def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
+    """
+    Like numpy.apply_along_axis(), but takes advantage of multiple
+    cores.
+    """        
+    # Effective axis where apply_along_axis() will be applied by each
+    # worker (any non-zero axis number would work, so as to allow the use
+    # of `np.array_split()`, which is only done on axis 0):
+    try:
+        effective_axis = 1 if axis == 0 else axis
+        if effective_axis != axis:
+            arr = arr.swapaxes(axis, effective_axis)
+
+        # Chunks for the mapping (only a few chunks):
+        chunks = [(func1d, effective_axis, sub_arr, args, kwargs)
+                  for sub_arr in np.array_split(arr, multiprocessing.cpu_count())]
+
+        pool = multiprocessing.Pool()
+        individual_results = pool.map(unpacking_apply_along_axis, chunks)
+        # Freeing the workers:
+        pool.close()
+        pool.join()
+        return np.concatenate(individual_results)
+    except Exception as e:
+        print("Error: Pooling failed. Using single cpu. ~8 times longer")
+        return np.apply_along_axis(func1d, axis, arr, *args, **kwargs)
+
+def unpacking_apply_along_axis(arg):
+    func1d, axis, arr, args, kwargs = arg
+    return np.apply_along_axis(func1d, axis, arr, *args, **kwargs)

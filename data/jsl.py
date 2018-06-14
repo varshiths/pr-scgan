@@ -62,7 +62,10 @@ class JSL(BaseData):
 		data_train = data_train_shaped[:,:,:,3:]
 
 		# converting them to quarternions
-		data_train = np.apply_along_axis(euler_to_quart, -1, data_train)
+		tshape = list(data_train.shape); tshape[-1] = 4
+		data_train = np.reshape(data_train, [-1, 3])
+		data_train = parallel_apply_along_axis(euler_to_quart, -1, data_train)
+		data_train = np.reshape(data_train, tshape)
 
 		return [data_train, data_means]
 		
