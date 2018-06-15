@@ -106,21 +106,53 @@ def rotationMatrixToEulerAngles(R) :
     return np.array([x, y, z])
 
 def euler_to_quart(a):
+    '''
+    convert degrees to rad and compute the relevant quaternion
+    first axis corresponds to angles
+    '''
+    a = np.deg2rad(a).astype(np.float64)
 
-    z, x, y = a
-    matrix = eulerAnglesToRotationMatrix((x,y,z))
-    qrt = Quaternion(matrix=matrix)
-    qrt = (int(qrt[0]>0)*2-1) * qrt
+    r, p, y = a
 
-    return qrt[0], qrt[1], qrt[2], qrt[3]
+    # matrix = eulerAnglesToRotationMatrix((x,y,z))
+    # qrt = Quaternion(matrix=matrix)
 
-def quart_to_euler(a):
+    cr = np.cos(r/2); sr = np.sin(r/2)
+    cp = np.cos(p/2); sp = np.sin(p/2)
+    cy = np.cos(y/2); sy = np.sin(y/2)
 
-    qrt = Quaternion(a)
-    matrix = qrt.rotation_matrix
-    x, y, z = rotationMatrixToEulerAngles(matrix)
+    q0 = cy*cr*cp + sy*sr*sp
+    q1 = cy*sr*cp - sy*cr*sp
+    q2 = cy*cr*sp + sy*sr*cp
+    q3 = sy*cr*cp - cy*sr*sp
 
-    return z, x, y
+
+    qrt = np.stack([q0, q1, q2, q3], axis=0)    
+    qrt = ((qrt[0]>0).astype(int)*2-1) * qrt
+
+    return qrt.astype(np.float32)
+
+def quart_to_euler(qrt):
+    '''
+    convert quart into euler in degrees
+    first axis corresponds to quaternion components
+    '''
+    qrt = qrt.astype(np.float64)
+    # qrt = Quaternion(a)
+
+    # matrix = qrt.rotation_matrix
+    # x, y, z = rotationMatrixToEulerAngles(matrix)
+
+    q0, q1, q2, q3 = qrt[0], qrt[1], qrt[2], qrt[3]
+    r = np.arctan2  ( 2*(q0*q1 + q2*q3) , 1-2*(q1**2+q2**2) )
+    p = np.arcsin   ( np.clip(2*(q0*q2-q3*q1), -1.0, +1.0) )
+    y = np.arctan2  ( 2*(q0*q3 + q1*q2) , 1-2*(q2**2+q3**2) )
+    z, x, y = r, p, y
+
+    a = np.stack([z, x, y], axis=0)
+
+    a = np.rad2deg(a).astype(np.float32)
+    return a
 
 def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
     """

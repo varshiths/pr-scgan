@@ -111,6 +111,8 @@ def main(argv):
 					run_quart_model_and_plot_gesture(session, model, data, config)
 				elif FLAGS.test_index == 4:
 					run_quart_model_and_output_csv(session, model, data, config, "output/csv_qwgan")
+				elif FLAGS.test_index == -1:
+					run_data_norm_and_denorm(session, model, data, config)
 
 if __name__ == '__main__':
 	try:

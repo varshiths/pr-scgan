@@ -61,18 +61,22 @@ class JSL(BaseData):
 		data_means = data_train_shaped[0,0,:,:3]
 		data_train = data_train_shaped[:,:,:,3:]
 
-		# converting them to quarternions
-		tshape = list(data_train.shape); tshape[-1] = 4
-		data_train = np.reshape(data_train, [-1, 3])
-		data_train = parallel_apply_along_axis(euler_to_quart, -1, data_train)
-		data_train = np.reshape(data_train, tshape)
+		# # converting them to quarternions
+		# tshape = list(data_train.shape); tshape[-1] = 4
+
+		data_train = np.swapaxes(data_train, 0, -1)
+		data_train = euler_to_quart(data_train)
+		data_train = np.swapaxes(data_train, 0, -1)
 
 		return [data_train, data_means]
 		
 	def denormalise(self, data_org):
 
 		_shape = data_org.shape
-		data = np.apply_along_axis(quart_to_euler, -1, data_org)
+		data = np.swapaxes(data_org, 0, -1)
+		data = quart_to_euler(data)
+		data = np.swapaxes(data, 0, -1)
+		
 		pos = np.broadcast_to(self.data_means, (_shape[0], _shape[1], _shape[2], 3))
 		ret = np.concatenate((pos, data), axis=-1)
 		# reshape into format

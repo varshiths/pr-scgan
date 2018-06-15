@@ -4,7 +4,7 @@ time python3 main.py \
 	--dataset jslw \
 	--config configs/seqgan_qw.json \
 	--architecture seqgan \
-	--mode train \
-	--model qw_conv_disc_phrs_0 \
-	--save qw_conv_disc_phrs_0 \
-	# --test_index 4 \
+	--mode test \
+	--model shuwa.qw_conv_disc_phrs_0 \
+	--save shuwa.qw_conv_disc_phrs_0 \
+	--test_index 4 \
