@@ -50,6 +50,8 @@ def main(argv):
 		data = JSL(config)
 	elif FLAGS.dataset == "jslw":
 		data = JSLW(config)
+	elif FLAGS.dataset == "jsla":
+		data = JSLA(config)
 
 	with tf.Graph().as_default(), tf.device('/cpu:0'):
 
@@ -64,10 +66,12 @@ def main(argv):
 			model = GAN(config)
 		elif FLAGS.architecture == "sgan":
 			model = SGAN(config)
-		elif FLAGS.architecture == "seqgan":
-			model = SeqGAN(config)
 		elif FLAGS.architecture == "sganconv":
 			model = SGANConv(config)
+		elif FLAGS.architecture == "seqgan":
+			model = SeqGAN(config)
+		elif FLAGS.architecture == "cseqgan":
+			model = CSeqGAN(config)
 		else:
 			model = BaseModel(config)
 
@@ -86,7 +90,9 @@ def main(argv):
 					model_train = SeqGANTrain(session, model, data, config, None)
 				elif FLAGS.architecture[:4] == "sgan":
 					model_train = SGANTrain(session, model, data, config, None)
-
+				elif FLAGS.architecture == "cseqgan":
+					model_train = CSeqGANTrain(session, model, data, config, None)
+				
 				try:
 					model_train.train()
 				except Exception as e:
