@@ -3,8 +3,8 @@ time python3 main.py \
 	--seed 0 \
 	--dataset jsla \
 	--config configs/cseqgan.json \
-	# --architecture cseqgan \
-	# --mode train \
-	# --model trial \
-	# --save trial \
+	--architecture cseqgan \
+	--mode train \
+	--model trial \
+	--save trial \
 	# --test_index 4 \

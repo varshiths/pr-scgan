@@ -1,6 +1,9 @@
 import tensorflow as tf
 import numpy as np
 import os
+import codecs
+import csv
+from collections import OrderedDict
 from .base_data import BaseData
 
 from .utils import *
@@ -10,7 +13,7 @@ class JSLA(BaseData):
 	"""MNIST dataset"""
 	def __init__(self, config):
 		super(JSLA, self).__init__(config)
-		self.iter_train = 0
+		self.iter_set = -1
 		self.data_path = "JSLA_data/data.npy"
 
 		print("Loading data...")
@@ -21,8 +24,10 @@ class JSLA(BaseData):
 		if 	npy_present:
 
 			print("Loading data from npy files...")
-			self.data_train = arrays[0]
-			self.data_means = arrays[1]
+			self.gestures = arrays[0]
+			self.gesture_means = arrays[1]
+			self.ann_encodings = arrays[2]
+			self.indices_of_words = arrays[3]
 
 		else:
 
@@ -31,8 +36,10 @@ class JSLA(BaseData):
 			arrays = self.normalise(data)
 			self.save_npy(arrays)
 
-			self.data_train = arrays[0]
-			self.data_means = arrays[1]
+			self.gestures = arrays[0]
+			self.gesture_means = arrays[1]
+			self.ann_encodings = arrays[2]
+			self.indices_of_words = arrays[3]
 
 	def load_npy(self):
 		arrays = []
@@ -49,26 +56,45 @@ class JSLA(BaseData):
 
 	def normalise(self, data):
 
-		print("Downsampling data...")
-		data_train = data[:,::,:]
+		gestures, sentences, indices_of_words = data
 
 		print("Transforming and selecting data...")
 		# saving motion data for later
-
-		_shape = data_train.shape
-		data_train_shaped = np.reshape(data_train, (_shape[0], _shape[1], -1, 6))
+		_shape = gestures.shape
+		gestures_shaped = np.reshape(gestures, (_shape[0], _shape[1], -1, 6))
 		# sampling the angles alone
-		data_means = data_train_shaped[0,0,:,:3]
-		data_train = data_train_shaped[:,:,:,3:]
+		gesture_means = gestures_shaped[0,0,:,:3]
+		gestures = gestures_shaped[:,:,:,3:]
 
-		# # converting them to quarternions
-		# tshape = list(data_train.shape); tshape[-1] = 4
+		# convert to quaternion representations
+		gestures = np.swapaxes(gestures, 0, -1)
+		gestures = euler_to_quart(gestures)
+		gestures = np.swapaxes(gestures, 0, -1)
 
-		data_train = np.swapaxes(data_train, 0, -1)
-		data_train = euler_to_quart(data_train)
-		data_train = np.swapaxes(data_train, 0, -1)
+		# encode words into one hot encodings
+		sencodings = self.process_input(sentences, indices_of_words)
 
-		return [data_train, data_means]
+		return [gestures, gesture_means, ann_encodings, indices_of_words]
+
+	def process_input(self, sentences, indices_of_words=self.indices_of_words):
+
+		try:
+			indices_of_words
+		except Exception as e:
+			raise Exception("Dictionary not defined")
+
+		nsentences = len(sentences)
+		slen = self.config.annot_length
+		swidth = self.config.vocab_size
+
+		outputs = np.zeros((nsentences, slen, swidth))
+		
+		for i, sentence in enumerate(sentences):
+			indices = [ indices_of_words[word] for word in sentence ]
+			poss = np.arange(len(sentence))
+			outputs[i, poss, indices] = 1
+
+		return outputs		
 		
 	def denormalise(self, data_org):
 
@@ -77,7 +103,7 @@ class JSLA(BaseData):
 		data = quart_to_euler(data)
 		data = np.swapaxes(data, 0, -1)
 		
-		pos = np.broadcast_to(self.data_means, (_shape[0], _shape[1], _shape[2], 3))
+		pos = np.broadcast_to(self.gesture_means, (_shape[0], _shape[1], _shape[2], 3))
 		ret = np.concatenate((pos, data), axis=-1)
 		# reshape into format
 		ret = np.reshape(ret, [_shape[0], _shape[1], -1])
@@ -87,59 +113,72 @@ class JSLA(BaseData):
 	def load_jsl_from_folder(self):
 
 		data_dir, target_length = self.config.data_dir, self.config.sequence_length
-		files = [str(x) for x in os.listdir(data_dir) if x[-4:] == ".csv"]
 
-		all_data = []
-		for file in files[:self.config.nfiles]:
+		# files = [str(x) for x in os.listdir(data_dir) if x[-4:] == ".csv"]
+		with codecs.open(self.config.sentences_file, "r", encoding="shiftjis") as f:
+			data = csv.reader(f, delimiter=",")
+			files = [row[0] for row in data]
+
+		if self.config.allfiles == -1:
+			files = files[:4]
+
+		gestures = []
+		for file in files:
 			ffile = os.path.join(data_dir, file)
 
 			data = np.transpose(np.genfromtxt(ffile, delimiter=','))
-			all_data.append(data)
+			gestures.append(data)
 			print("%s \t %s" % (file, data.shape))
 
-		all_data = [ general_pad(x, target_length) for x in all_data ]
-		all_data = np.stack(all_data, axis=0)
+		gestures = [ sp_pad(x, target_length) for x in gestures ]
+		gestures = np.stack(gestures, axis=0)
 
-		return all_data
+		# read the sentences from file
+		sentences_all = {}
+		with codecs.open(self.config.sentences_file, "r", encoding="shiftjis") as f:
+			data = csv.reader(f, delimiter=",")
+			for row in data:
+				sentences_all[row[0]] = row[1:]
+		sentences = []
+		for file in files:
+			sentences.append(sentences_all[file])
+
+		# get the vocab dict of annotations
+		indices_of_words = {}
+		with codecs.open(self.config.words_file, "r", encoding="shiftjis") as f:
+			data = csv.reader(f, delimiter=",")
+			for row in data:
+				indices_of_words[row[0]] = int(row[1])
+
+		return gestures, sentences, indices_of_words
 
 	def next_batch(self):
 
-		if self.iter_train > self.data_train.shape[0]:
-			self.iter_train = 0
-			return None
+		if self.iter_set == -1:
+			# split into batches and store in a list 
+			nsamples = self.gestures.shape[0] - self.gestures.shape[0] % self.config.batch_size 
+			nsamples = np.shuffle(np.arange(nsamples))
 
-		batch = {}
+			nsamples = np.reshape(nsamples, [-1, self.batch_size])
 
-		batch["data"] = self.data_train[self.iter_train : self.iter_train + self.config.batch_size]
+			self.batches_gestures = self.gestures[nsamples]
+			self.batches_annotations = self.annotations[nsamples]
+			self.iter_set = nsamples.shape[0]
 
-		self.iter_train += self.config.batch_size
-
+		batch = {
+			"gestures": self.batches_gestures[self.iter_set],
+			"annotations": self.batches_annotations[self.iter_set]
+		}
+		self.iter_set -= 1
 		return batch
 
 	def random_batch(self):
 
-		batch = {}
-
-		n_data = self.data_train.shape[0]
+		n_data = self.gestures.shape[0]
 		choices = np.random.randint(0, n_data, [self.config.batch_size])
 
-		batch["data"] = self.data_train[choices]
-
+		batch = {
+			"gestures": self.gestures[choices],
+			"annotations": self.annotations[choices]
+		}
 		return batch
-
-	def training_set(self):
-
-		batch = {}
-
-		batch["data"] = self.data_train
-
-		return batch
-
-	def validation_set(self):
-
-		batch = {}
-
-		batch["data"] = self.data_eval
-
-		return batch
-		

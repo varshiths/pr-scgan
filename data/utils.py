@@ -39,6 +39,16 @@ def general_pad(x, tgt_len):
         nds = np.sort(np.random.choice(np.arange(x.shape[0]), tgt_len, replace=False))
         return x[nds]
 
+def sp_pad(x, tgt_len):
+
+    pads = tgt_len-x.shape[0]
+    pads_2 = int(pads/2)
+    if pads >= 0:
+        return np.pad(x, [ (pads_2,pads-pads_2), (0,0) ], 'edge')
+    else:
+        nds = np.sort(np.random.choice(np.arange(x.shape[0]), tgt_len, replace=False))
+        return x[nds]
+
 def inter_pad(x, tgt_len):
 
     length = x.shape[0]

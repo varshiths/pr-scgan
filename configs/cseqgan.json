@@ -3,12 +3,14 @@
   "ngpus": 1,
   "batch_size": 64,
 
-  "nfiles": 4,
+  "allfiles": -1,
 
   "time_steps": 64,
   "sequence_length": 64,
-
   "sequence_width": 107,
+
+  "vocab_size": 279,
+  "annot_length": 42,
   
   "latent_state_size": 1000,
   "embedding_latent": 2000,
@@ -32,6 +34,8 @@
 
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
   "annot_dir": "/home/user/shuwa/home/data/00_Annotations_20180427/",
+  "sentences_file": "/home/user/shuwa/home/data/01_Label/list.csv",
+  "words_file": "/home/user/shuwa/home/data/01_Label/label_sjis.csv",
 
   "checkpoint_dir": "save/cseqgan/",
   "max_to_keep": 5,
