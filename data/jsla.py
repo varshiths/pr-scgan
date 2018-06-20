@@ -76,15 +76,15 @@ class JSLA(BaseData):
 
 		return [gestures, gesture_means, ann_encodings, indices_of_words]
 
-	def process_input(self, sentences, indices_of_words=self.indices_of_words):
+	def process_input(self, sentences, indices_of_words=None):
 
 		try:
-			indices_of_words
+			indices_of_words = self.indices_of_words
 		except Exception as e:
 			raise Exception("Dictionary not defined")
 
 		nsentences = len(sentences)
-		slen = self.config.annot_length
+		slen = self.config.annot_seq_length
 		swidth = self.config.vocab_size
 
 		outputs = np.zeros((nsentences, slen, swidth))

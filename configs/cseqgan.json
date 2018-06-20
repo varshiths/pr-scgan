@@ -10,12 +10,19 @@
   "sequence_width": 107,
 
   "vocab_size": 279,
-  "annot_length": 42,
+  "annot_seq_length": 48,
   
+  "encoding_state_size": 1000,
+
   "latent_state_size": 1000,
-  "embedding_latent": 2000,
+  "embed_states": 2000,
 
   "keep_prob" : 0.2,
+
+  "lstm_units_enc" : 1000,
+  "lstm_layers_enc" : 3,
+
+  "att_heads" : 8,
 
   "lstm_input_gen" : 1000,
   "lstm_units_gen" : 1000,
