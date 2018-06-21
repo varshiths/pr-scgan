@@ -3,8 +3,8 @@ import numpy as np
 from .base_model import BaseModel
 import pprint
 
-pp = pprint.PrettyPrinter()
-
+ppr = pprint.PrettyPrinter()
+sprint = lambda x: ppr.pprint(x)
 
 class CSeqGAN(BaseModel):
 
@@ -12,22 +12,26 @@ class CSeqGAN(BaseModel):
         # sequence
         self.gesture = tf.placeholder(
                 dtype=tf.float32,
-                shape=[self.config.batch_size, self.config.time_steps, self.config.sequence_width, 4]
+                shape=[self.config.batch_size, self.config.sequence_length, self.config.sequence_width, 4],
+                name="gesture",
             )
 
         self.sentence = tf.placeholder(
                 dtype=tf.int32,
-                shape=[self.config.batch_size, self.config.annot_seq_length]
+                shape=[self.config.batch_size, self.config.annot_seq_length],
+                name="sentence",
             )
 
         self.latent = tf.placeholder(
                 dtype=tf.float32,
-                shape=[self.config.batch_size, self.config.latent_state_size]
+                shape=[self.config.batch_size, self.config.latent_state_size],
+                name="latent",
             )
 
         self.start = tf.placeholder(
                 dtype=tf.float32,
-                shape=[self.config.batch_size, self.config.sequence_width, 4]
+                shape=[self.config.batch_size, self.config.sequence_width, 4],
+                name="start",
             )
 
     def rnn_unit(num_units, num_layers, keep_prob):
@@ -42,16 +46,20 @@ class CSeqGAN(BaseModel):
 
         return tf.contrib.rnn.MultiRNNCell([rnn_cell() for _ in range(num_layers)])
 
-    def cfblock(self, inputs, define=False):
+    def cfblock(self, inputs):
 
-        with tf.variable_scope("cfblock", reuse=(not define)):
+        with tf.variable_scope("cfblock"):
 
             lp0 = [
                 ([5, 5, 1, 2], [1, 1, 1, 1], [1, 1, 1, 1]),
+                ([5, 5, 2, 3], [1, 1, 1, 1], [1, 1, 1, 1]),
+            ]
+            lp1 = [
+                ([5, 5, 3, 2], [1, 1, 1, 1], [1, 1, 1, 1]),
                 ([5, 5, 2, 1], [1, 1, 1, 1], [1, 1, 1, 1]),
             ]
             cnn_unit_disc0 = CSeqGAN.cnn_unit(lp0, "leaky_relu", "SAME", "block0")
-            cnn_unit_disc1 = CSeqGAN.cnn_unit(lp0, "leaky_relu", "SAME", "block1")
+            cnn_unit_disc1 = CSeqGAN.cnn_unit(lp1, "leaky_relu", "SAME", "block1")
 
             # expand dims
             inputs = tf.expand_dims(inputs, axis=1)
@@ -80,20 +88,20 @@ class CSeqGAN(BaseModel):
         
         return inputs + pose
 
-    def encoder_network(self, sentence, define=False):
+    def encoder_network(self, sentence):
 
-        with tf.variable_scope("encoder", reuse=(not define)):
+        with tf.variable_scope("encoder"):
             # embeddings
             # todo: replace with matmul for one hot
             with tf.variable_scope("embeddings"):
-                table = tf.get_variable("table", [self.config.vocab_size, 512])
+                table = tf.get_variable("table", [self.config.vocab_size, self.config.annot_embedding])
                 embed_inputs = tf.nn.embedding_lookup(table, sentence)
 
             # position embeddings
             embed_inputs = self.position_embeddings(embed_inputs)
 
             # cfblock
-            cfblock_outputs = self.cfblock(embed_inputs, define)
+            cfblock_outputs = self.cfblock(embed_inputs)
 
             # rnn
             cells_fw = CSeqGAN.rnn_unit(
@@ -116,9 +124,9 @@ class CSeqGAN(BaseModel):
 
         return outputs
 
-    def generator_network(self, states, latent, start, define=False):
-
-        with tf.variable_scope("generator", reuse=(not define)):
+    def decoder_network(self, states, latent, start):
+        
+        with tf.variable_scope("decoder"):
             batch_size = states.shape[0].value
 
             # concat enc states, latent and embed
@@ -148,108 +156,107 @@ class CSeqGAN(BaseModel):
                 return actv
 
             # multi head attention mechanism + decode
-            with tf.variable_scope("rnn") as rnn_scope:
-                cell = CSeqGAN.rnn_unit(
-                    self.config.lstm_units_gen, 
-                    self.config.lstm_layers_gen,
-                    self.config.keep_prob
-                    )
-                cell_initial_state = cell.zero_state(batch_size, tf.float32)
+        
+            cell = CSeqGAN.rnn_unit(
+                self.config.lstm_units_gen, 
+                self.config.lstm_layers_gen,
+                self.config.keep_prob
+                )
+            cell_initial_state = cell.zero_state(batch_size, tf.float32)
 
-                # input embedding
-                input_embedding = tf.layers.Dense(self.config.lstm_input_gen, name="input_embedding")
+            # input embedding
+            input_embedding = tf.layers.Dense(self.config.lstm_input_gen, name="input_embedding")
 
-                att = []
-                with tf.variable_scope("attention"):
-                    for i in range(self.config.att_heads):
-                        att0 = tf.layers.Dense(self.config.annot_seq_length*10, activation=tf.nn.leaky_relu, name="head%d/0"%i)
-                        att1 = tf.layers.Dense(1, name="head%d/1"%i)
-                        func = lambda x: att1(att0(x))
-                        att.append(func)
+            def apply_attention_net(_input, head):
+                att0 = tf.layers.dense(_input, self.config.annot_seq_length*10, activation=tf.nn.leaky_relu, name="head%d/0"%head)
+                att1 = tf.layers.dense(att0, 1, name="head%d/1"%head)
+                return att1
 
-                def get_context_vec(query):
-
-                    import pdb; pdb.set_trace()
-
+            def get_context_vec(query, scope="attention", reuse=True):
+                with tf.variable_scope(scope, reuse=reuse):
                     query = tf.concat([tup.h for tup in query], axis=1)
                     query = tf.expand_dims(query, axis=1)
-                    query = tf.tile(query, [1, states.shape[1].value, 1])
-                    states_split = tf.split(states, self.config.att_heads, axis=2)
+                    query = tf.tile(query, [1, embed_states.shape[1].value, 1])
+                    states_split = tf.split(embed_states, self.config.att_heads, axis=2)
 
                     ccq_split = [ tf.concat([query, s], axis=2) for s in states_split ]
-                    prob_split = [ tf.nn.softmax(tf.squeeze(att[i](s), axis=2), axis=1) for i, s in enumerate(ccq_split) ]
+                    prob_split = [ tf.nn.softmax(tf.squeeze(apply_attention_net(s, ind), axis=2), axis=1) for ind, s in enumerate(ccq_split) ]
 
                     ws_split = [ tf.squeeze(tf.matmul(tf.expand_dims(p, axis=1),s), axis=1) for p,s in zip(prob_split, states_split) ]
                     ctxt = tf.concat(ws_split, axis=1)
+                return ctxt
 
-                    return ctxt
-
-                '''
-                Not compatible with tf 1.4.1
-                '''
-                def initialize():
-                    start_shaped = tf.reshape(start, [batch_size, -1])
-                    next_inputs = tf.concat([get_context_vec(cell_initial_state), start_shaped], axis=1)
-                    next_inputs = input_embedding(next_inputs)
-                    next_inputs = tf.contrib.layers.batch_norm(
-                        next_inputs, 
-                        is_training=self.config.train_phase,
-                        scope="token_batchnorm",
-                        reuse=False,
-                        )
-                    next_inputs = tf.nn.leaky_relu(next_inputs)
-                    finished = tf.tile([False], [batch_size])
-                    return (finished, next_inputs)
-
-                def sample(time, outputs, state):
-                    samples = tf.tile([0], [batch_size])
-                    return samples
-
-                def next_inputs(time, outputs, state, sample_ids):
-                    
-                    next_inputs = tf.concat([get_context_vec(state), outputs], axis=1)
-                    next_inputs = input_embedding(next_inputs)
-                    next_inputs = tf.contrib.layers.batch_norm(
-                        next_inputs, 
-                        is_training=self.config.train_phase,
-                        scope="token_batchnorm",
-                        reuse=True,
-                        )
-                    next_inputs = tf.nn.leaky_relu(next_inputs)
-                    finished = tf.tile([False], [batch_size])
-
-                    # return (finished, next_inputs, next_state)
-                    return (finished, next_inputs, state)
-
-                helper = tf.contrib.seq2seq.CustomHelper(
-                        initialize_fn=initialize,
-                        sample_fn=sample,
-                        next_inputs_fn=next_inputs,
-                        sample_ids_shape=None,
-                        sample_ids_dtype=None
+            def initialize():
+                start_shaped = tf.reshape(start, [batch_size, -1])
+                next_inputs = tf.concat([get_context_vec(cell_initial_state, reuse=tf.get_variable_scope().reuse), start_shaped], axis=1)
+                next_inputs = input_embedding(next_inputs)
+                next_inputs = tf.contrib.layers.batch_norm(
+                    next_inputs, 
+                    is_training=self.config.train_phase,
+                    scope="token_batchnorm",
+                    reuse=tf.get_variable_scope().reuse,
                     )
+                next_inputs = tf.nn.leaky_relu(next_inputs)
+                finished = tf.tile([False], [batch_size])
+                return (finished, next_inputs)
 
-                decoder = tf.contrib.seq2seq.BasicDecoder(
-                    cell=cell,
-                    helper=helper,
-                    initial_state=cell_initial_state,
-                    output_layer=tf.layers.Dense(
-                            units=self.config.sequence_width * 4,
-                            activation=quart_activation,
-                            kernel_initializer=tf.random_normal_initializer(),
-                            bias_initializer=tf.random_normal_initializer(),
-                            name="output_embedding",
-                        ),
+            def sample(time, outputs, state):
+                samples = tf.tile([0], [batch_size])
+                return samples
+
+            def next_inputs(time, outputs, state, sample_ids):
+                
+                next_inputs = tf.concat([get_context_vec(state), outputs], axis=1)
+                next_inputs = input_embedding(next_inputs)
+                next_inputs = tf.contrib.layers.batch_norm(
+                    next_inputs, 
+                    is_training=self.config.train_phase,
+                    scope="token_batchnorm",
+                    reuse=True,
                     )
-                outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
-                    decoder=decoder,
-                    output_time_major=False,
-                    parallel_iterations=12,
-                    maximum_iterations=self.config.time_steps)
+                next_inputs = tf.nn.leaky_relu(next_inputs)
+                finished = tf.tile([False], [batch_size])
 
-                outputs = outputs.rnn_output
+                # return (finished, next_inputs, next_state)
+                return (finished, next_inputs, state)
 
-            outputs = tf.reshape(outputs, [batch_size, self.config.time_steps, self.config.sequence_width, 4])
+            helper = tf.contrib.seq2seq.CustomHelper(
+                    initialize_fn=initialize,
+                    sample_fn=sample,
+                    next_inputs_fn=next_inputs,
+                    sample_ids_shape=None,
+                    sample_ids_dtype=None
+                )
+            decoder = tf.contrib.seq2seq.BasicDecoder(
+                cell=cell,
+                helper=helper,
+                initial_state=cell_initial_state,
+                output_layer=tf.layers.Dense(
+                        units=self.config.sequence_width * 4,
+                        activation=quart_activation,
+                        kernel_initializer=None,
+                        bias_initializer=None,
+                        name="output_embedding",
+                    ),
+                )
+            outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+                decoder=decoder,
+                output_time_major=False,
+                parallel_iterations=12,
+                maximum_iterations=self.config.sequence_length)
+
+            outputs = outputs.rnn_output
+
+            outputs = tf.reshape(outputs, [batch_size, self.config.sequence_length, self.config.sequence_width, 4])
+
+        return outputs
+
+    def generator_network(self, sentence, latent, start, define=False):
+
+        with tf.variable_scope("generator", reuse=(not define)):
+           
+           out_enc = self.encoder_network(sentence)
+           outputs = self.decoder_network(out_enc, latent, start)
 
         if define:
             self.gen_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator")
@@ -258,7 +265,7 @@ class CSeqGAN(BaseModel):
     def cnn_unit(params, activation=None, padding="SAME", scope=""):
 
         def get_variable(filt_dim, scope):
-            return tf.get_variable(scope + "/filter", filt_dim)
+            return tf.get_variable(scope, filt_dim)
 
         def function(inp):
             out = inp
@@ -279,7 +286,7 @@ class CSeqGAN(BaseModel):
 
     def discriminator_network(self, seq, define=False):
 
-        seq = tf.reshape(seq, [-1, self.config.time_steps, self.config.sequence_width * 4])
+        seq = tf.reshape(seq, [-1, self.config.sequence_length, self.config.sequence_width * 4])
 
         with tf.variable_scope("discriminator", reuse=(not define)):
 
@@ -287,7 +294,7 @@ class CSeqGAN(BaseModel):
 
             # Convolution with pooling
             # Features are not spacially correlated
-            out_cnn = tf.reshape(seq, [-1, 1, self.config.time_steps, self.config.sequence_width*4])
+            out_cnn = tf.reshape(seq, [-1, 1, self.config.sequence_length, self.config.sequence_width*4])
 
             lp0 = [([10, 4,  1, 4 * 10], [1, 1, 2, 4], [1, 1, 2, 1]),]
             lp1 = [([10, 4, 10, 4 * 10], [1, 1, 2, 4], [1, 1, 2, 1]),]
@@ -326,156 +333,129 @@ class CSeqGAN(BaseModel):
                 )
             
             with tf.variable_scope("prob_embed"):
-                w0 = tf.get_variable("weight0", [self.config.sequence_width, 50])
-                b0 = tf.get_variable("bias0", [50])
-
-                w1 = tf.get_variable("weight1", [50, 1])
-                b1 = tf.get_variable("bias1", [1])
-
-                out = tf.nn.leaky_relu( tf.matmul(out_pool, w0) + b0 )
-                out = tf.matmul(out, w1) + b1
+                out = tf.layers.dense(out_pool, 64, activation=tf.nn.leaky_relu)
+                out = tf.layers.dense(out, 32, activation=tf.nn.leaky_relu)
+                out = tf.layers.dense(out, 1)
                 out = tf.reshape(out, [-1])
-
-            # # Fully connected network
-
-            '''
-            # time independent compression of each sequence
-            out = tf.reshape(seq, [-1, self.config.sequence_width*4])
-            out = tf.layers.dense(
-                    inputs=out,
-                    units=300,
-                    activation=None,
-                    kernel_initializer=tf.random_normal_initializer(),
-                    bias_initializer=tf.random_normal_initializer(),
-                )
-            out = tf.contrib.layers.batch_norm(out, is_training=self.config.train_phase, activation_fn=tf.nn.leaky_relu)
-            out = tf.layers.dense(
-                    inputs=out,
-                    units=100,
-                    activation=None,
-                    kernel_initializer=tf.random_normal_initializer(),
-                    bias_initializer=tf.random_normal_initializer(),
-                )
-            out = tf.contrib.layers.batch_norm(out, is_training=self.config.train_phase, activation_fn=tf.nn.leaky_relu)
-
-            # ff across time
-            out = tf.reshape(out, [batch_size, -1])
-            out = tf.layers.dense(
-                    inputs=out,
-                    units=1000,
-                    activation=None,
-                    kernel_initializer=tf.random_normal_initializer(),
-                    bias_initializer=tf.random_normal_initializer(),
-                )
-            out = tf.contrib.layers.batch_norm(out, is_training=self.config.train_phase, activation_fn=tf.nn.leaky_relu)
-            out = tf.layers.dense(
-                    inputs=out,
-                    units=1,
-                    activation=None,
-                    kernel_initializer=tf.random_normal_initializer(),
-                    bias_initializer=tf.random_normal_initializer(),
-                )
-            '''
 
         if define:
             self.disc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
         return out
 
-    def generator_cost(self, discval_gen, _gen):
+    def generator_costs(self, discval_gen, _gen, _target):
 
-        batch_size = discval_gen.shape[0].value
+        # discriminator cost
+        disc_cost = -tf.reduce_mean(discval_gen)
+        # pretrain_cost
+        pretrain_cost = self.generator_pretrain_cost(_gen, _target)
+        return pretrain_cost, disc_cost + pretrain_cost
 
-        differences = tf.reshape(_gen[:,1:,:,:]-_gen[:,:-1,:,:], [batch_size, -1])
-        diff_cost = tf.reduce_mean(tf.sqrt(tf.reduce_mean(tf.square(differences), axis=1)))
-        cost = -tf.reduce_mean(discval_gen) + self.config.smoothness_weight*diff_cost
+    def generator_pretrain_cost(self, _gen, _target):
+
+        # smoothness
+        differences = tf.square(_gen[:,1:,:,:]-_gen[:,:-1,:,:])
+        smoothness_cost = tf.maximum(tf.reduce_mean(differences)-self.config.smoothness_threshold, 0.0)
+
+        # supervision cost
+        # todo: dtw
+        target_cost = tf.reduce_mean(tf.square(_gen - _target))
+
+        # accumulated cost
+        cost = target_cost + smoothness_cost*self.config.smoothness_weight
         return cost
 
     def discriminator_cost(self, discval_gen, discval_target, _gen, _target):
 
         batch_size = _target.shape[0].value
 
-        ep = tf.random_uniform(shape=[batch_size, 1, 1, 1], minval=0, maxval=1)
-        with tf.variable_scope("cost", reuse=tf.AUTO_REUSE):
-            x = tf.get_variable("temp", [batch_size, self.config.time_steps, self.config.sequence_width, 4], trainable=False)
+        with tf.variable_scope("cost", reuse=False):
+            ep = tf.random_uniform(shape=[batch_size, 1, 1, 1], minval=0, maxval=1)
+            x = tf.get_variable("temp", [batch_size, self.config.sequence_length, self.config.sequence_width, 4], trainable=False)
             x = tf.assign(x, _target*ep + _gen*(1-ep))
-        # x = tf.Variable(_target*ep + _gen*(1-ep))
 
         disc_x = self.discriminator_network(x)
         grads = tf.reshape(tf.gradients(disc_x, x)[0], [batch_size, -1])
-        grad_error = tf.reduce_mean(tf.square(tf.norm(grads, axis=1) - 1))
+        grad_cost = tf.reduce_mean(tf.square(tf.norm(grads, axis=1) - 1))
 
         cost = tf.reduce_mean(discval_gen)-tf.reduce_mean(discval_target) + \
-                self.config.grad_penalty_weight*tf.reduce_mean(grad_error)
+                grad_cost*self.config.grad_penalty_weight
         return cost
 
     def build_model(self):
 
-        self.epsilon = tf.constant(1e-8)
-        self.create_placeholders()
-
-        # split feed into batches for ngpus
-        gesture_a = make_batches(self.config.ngpus, self.gesture)
-        sentence_a = make_batches(self.config.ngpus, self.sentence)
-        latent_a = make_batches(self.config.ngpus, self.latent)
-        start_a = make_batches(self.config.ngpus, self.start)
-        
-        out_gen_list = []
-        gen_cost_list = []
-        disc_cost_list = []
-        
-        gen_grads_list = []
-        disc_grads_list = []
-
         with tf.variable_scope(tf.get_variable_scope()):
+
+            self.epsilon = tf.constant(1e-8)
+            self.create_placeholders()
+
+            # split feed into batches for ngpus
+            gesture_a = make_batches(self.config.ngpus, self.gesture)
+            sentence_a = make_batches(self.config.ngpus, self.sentence)
+            latent_a = make_batches(self.config.ngpus, self.latent)
+            start_a = make_batches(self.config.ngpus, self.start)
+            
+            out_gen_list = []
+            gen_cost_list = []
+            gen_pretrain_cost_list = []
+            disc_cost_list = []
+            
+            gen_pretrain_grads_list = []
+            gen_grads_list = []
+            disc_grads_list = []
+
             for i in range(self.config.ngpus):
+
+                gesture, sentence, latent, start = gesture_a[i], sentence_a[i], latent_a[i], start_a[i]
+
                 with tf.device('/gpu:%d' % i):
-
-                    import pdb; pdb.set_trace()
-
-                    gesture, sentence, latent, start = gesture_a[i], sentence_a[i], latent_a[i], start_a[i] 
-
-                    out_enc = self.encoder_network(sentence, i==0)
-                    out_gen = self.generator_network(out_enc, latent, start, i==0)
+                    # import pdb; pdb.set_trace()
+                    out_gen = self.generator_network(sentence, latent, start, i==0)
 
                     disc_out_gen = self.discriminator_network(out_gen, i==0)
                     disc_out_target = self.discriminator_network(gesture)
 
-                    gen_cost = self.generator_cost(disc_out_gen, out_gen)
+                    gen_pretrain_cost, gen_cost = self.generator_costs(disc_out_gen, out_gen, gesture)
                     disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target, out_gen, gesture)
 
+                    gen_pretrain_grads = self.compute_and_clip_gradients(gen_pretrain_cost, self.gen_vars)
                     gen_grads = self.compute_and_clip_gradients(gen_cost, self.gen_vars)
                     disc_grads = self.compute_and_clip_gradients(disc_cost, self.disc_vars)
 
-                    out_gen_list.append(out_gen)
-                    gen_cost_list.append(gen_cost)
-                    disc_cost_list.append(disc_cost)
-                    gen_grads_list.append(gen_grads)
-                    disc_grads_list.append(disc_grads)
+                out_gen_list.append(out_gen)
+                gen_pretrain_cost_list.append(gen_pretrain_cost)
+                gen_cost_list.append(gen_cost)
+                disc_cost_list.append(disc_cost)
+                gen_pretrain_grads_list.append(gen_pretrain_grads)
+                gen_grads_list.append(gen_grads)
+                disc_grads_list.append(disc_grads)
 
-        gen_grads = average_gradients(gen_grads_list)
-        disc_grads = average_gradients(disc_grads_list)
+            gen_pretrain_grads = average_gradients(gen_pretrain_grads_list)
+            gen_grads = average_gradients(gen_grads_list)
+            disc_grads = average_gradients(disc_grads_list)
 
-        # defining optimizer
-        optimizer_gen = tf.train.AdamOptimizer(
-            learning_rate=self.config.learning_rate
-        )
+            # defining optimizer
+            optimizer_gen = tf.train.AdamOptimizer(
+                learning_rate=self.config.learning_rate
+            )
+            optimizer_disc = tf.train.AdamOptimizer(
+                learning_rate=self.config.learning_rate/2
+            )
 
-        optimizer_disc = tf.train.AdamOptimizer(
-            learning_rate=self.config.learning_rate/2
-        )
+            # main step fetches
+            self.gen_pretrain_grad_step = optimizer_gen.apply_gradients(zip( gen_pretrain_grads, self.gen_vars ))
+            self.gen_grad_step = optimizer_gen.apply_gradients(zip( gen_grads, self.gen_vars ))
+            self.disc_grad_step = optimizer_disc.apply_gradients(zip( disc_grads, self.disc_vars ))
 
-        # main step fetches
-        self.gen_grad_step = optimizer_gen.apply_gradients(zip( gen_grads, self.gen_vars ))
-        self.disc_grad_step = optimizer_disc.apply_gradients(zip( disc_grads, self.disc_vars ))
+            # setting other informative fetches
+            self.out_gen = tf.stack(out_gen, axis=0)
+            self.gen_pretrain_cost = tf.reduce_mean(tf.convert_to_tensor(gen_pretrain_cost))
+            self.gen_cost = tf.reduce_mean(tf.convert_to_tensor(gen_cost))
+            self.disc_cost = tf.reduce_mean(tf.convert_to_tensor(disc_cost))
+            self.gen_pretrain_grads = tf.reduce_mean([tf.norm(x) for x in gen_pretrain_grads])
+            self.gen_grads = tf.reduce_mean([tf.norm(x) for x in gen_grads])
+            self.disc_grads = tf.reduce_mean([tf.norm(x) for x in disc_grads])
 
-        # setting other informative fetches
-        self.out_gen = tf.stack(out_gen, axis=0)
-        self.gen_cost = tf.reduce_mean(tf.convert_to_tensor(gen_cost))
-        self.disc_cost = tf.reduce_mean(tf.convert_to_tensor(disc_cost))
-        self.gen_grads = tf.reduce_mean([tf.norm(x) for x in gen_grads])
-        self.disc_grads = tf.reduce_mean([tf.norm(x) for x in disc_grads])
-
-        self.build_validation_metrics()
+            self.build_validation_metrics()
 
     def compute_and_clip_gradients(self, cost, _vars):
 
@@ -485,10 +465,8 @@ class CSeqGAN(BaseModel):
 
     def build_validation_metrics(self):
 
-        pp.pprint(self.gen_vars)
-        pp.pprint(self.disc_vars)
-
-        pass
+        sprint(self.gen_vars)
+        sprint(self.disc_vars)
 
 def average_gradients(grads):
 
@@ -506,10 +484,7 @@ def average_gradients(grads):
 
 def make_batches(n, data):
     try:
-        shape = [x.value for x in list(data.shape)]
-        shape[0] = int(shape[0]/n)
-        shape.insert(0, n)
-        batched = tf.reshape(data, shape)
+        batched = tf.split(data, n, axis=0)
     except Exception as e:
         raise Exception("Batch size not a multiple of ngpus")
     return batched

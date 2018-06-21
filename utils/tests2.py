@@ -68,3 +68,11 @@ def run_data_norm_and_denorm(sess, model, data, config):
 
 	jsld	 = np.reshape(jsld, [-1, 64, 107, 6])
 	jsld_nd	 = np.reshape(jsld_nd, [-1, 64, 107, 6])
+
+def etc(sess, model, data, config):
+
+	gesture = data.random_batch()["data"]
+
+	import pdb; pdb.set_trace()
+
+	print(gesture)

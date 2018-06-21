@@ -7,4 +7,4 @@ time python3 main.py \
 	# --mode train \
 	# --model trial \
 	# --save trial \
-	# --test_index 4 \
+	# --test_index -2 \
