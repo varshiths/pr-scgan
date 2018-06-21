@@ -1,11 +1,11 @@
 {
   "num_pretrain_epochs": 200,
   "num_epochs": 0,
-  "batch_size": 8,
+  "batch_size": 2,
 
   "allfiles": 1,
 
-  "sequence_length": 64,
+  "sequence_length": 1024,
   "sequence_width": 107,
 
   "vocab_size": 277,

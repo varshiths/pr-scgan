@@ -126,7 +126,7 @@ class JSLA(BaseData):
 			gestures.append(data)
 			print("%4d/%d %s \t %s" % (i, nfiles, file, data.shape))
 
-		gestures = [ sp_pad(x, target_length) for x in gestures ]
+		gestures = [ inter_pad(x, target_length) for x in gestures ]
 		gestures = np.stack(gestures, axis=0)
 
 		# read the sentences from file
