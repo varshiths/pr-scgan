@@ -17,8 +17,8 @@ class CSeqGAN(BaseModel):
             )
 
         self.sentence = tf.placeholder(
-                dtype=tf.int32,
-                shape=[self.config.batch_size, self.config.annot_seq_length],
+                dtype=tf.float32,
+                shape=[self.config.batch_size, self.config.annot_seq_length, self.config.vocab_size],
                 name="sentence",
             )
 
@@ -94,8 +94,8 @@ class CSeqGAN(BaseModel):
             # embeddings
             # todo: replace with matmul for one hot
             with tf.variable_scope("embeddings"):
-                table = tf.get_variable("table", [self.config.vocab_size, self.config.annot_embedding])
-                embed_inputs = tf.nn.embedding_lookup(table, sentence)
+                table = tf.layers.Dense(self.config.annot_embedding, name="table")
+                embed_inputs = table(sentence)
 
             # position embeddings
             embed_inputs = self.position_embeddings(embed_inputs)

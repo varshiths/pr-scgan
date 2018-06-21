@@ -12,8 +12,10 @@ class CSeqGANTrain(GANTrain):
 
     def pre_train(self):
 
-        print("Pre-Trainer")
-        pass
+        for cur_epoch in range(self.config.num_pretrain_epochs):
+            print("Pre-Train Epoch:", cur_epoch)
+
+            
 
     def disc_step(self):
 

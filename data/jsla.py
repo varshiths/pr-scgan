@@ -22,24 +22,17 @@ class JSLA(BaseData):
 		npy_present, arrays = self.load_npy()
 
 		if 	npy_present:
-
 			print("Loading data from npy files...")
-			self.gestures = arrays[0]
-			self.gesture_means = arrays[1]
-			self.ann_encodings = arrays[2]
-			self.indices_of_words = arrays[3]
-
 		else:
-
+			print("Loading data from data directory...")
 			data = self.load_jsl_from_folder()
-
 			arrays = self.normalise(data)
 			self.save_npy(arrays)
 
-			self.gestures = arrays[0]
-			self.gesture_means = arrays[1]
-			self.ann_encodings = arrays[2]
-			self.indices_of_words = arrays[3]
+		self.gestures = arrays[0]
+		self.gesture_means = arrays[1]
+		self.annotations = arrays[2]
+		self.indices_of_words = arrays[3]
 
 	def load_npy(self):
 		arrays = []
@@ -72,14 +65,15 @@ class JSLA(BaseData):
 		gestures = np.swapaxes(gestures, 0, -1)
 
 		# encode words into one hot encodings
-		sencodings = self.process_input(sentences, indices_of_words)
+		ann_encodings = self.process_input(sentences, indices_of_words)
 
 		return [gestures, gesture_means, ann_encodings, indices_of_words]
 
 	def process_input(self, sentences, indices_of_words=None):
 
 		try:
-			indices_of_words = self.indices_of_words
+			if indices_of_words is None:
+				indices_of_words = self.indices_of_words
 		except Exception as e:
 			raise Exception("Dictionary not defined")
 
@@ -94,7 +88,7 @@ class JSLA(BaseData):
 			poss = np.arange(len(sentence))
 			outputs[i, poss, indices] = 1
 
-		return outputs		
+		return outputs
 		
 	def denormalise(self, data_org):
 
@@ -148,7 +142,7 @@ class JSLA(BaseData):
 		with codecs.open(self.config.words_file, "r", encoding="shiftjis") as f:
 			data = csv.reader(f, delimiter=",")
 			for row in data:
-				indices_of_words[row[0]] = int(row[1])
+				indices_of_words[row[0]] = int(row[1])-1
 
 		return gestures, sentences, indices_of_words
 

@@ -71,8 +71,5 @@ def run_data_norm_and_denorm(sess, model, data, config):
 
 def etc(sess, model, data, config):
 
-	gesture = data.random_batch()["data"]
-
 	import pdb; pdb.set_trace()
-
-	print(gesture)
+	batch = data.random_batch()
