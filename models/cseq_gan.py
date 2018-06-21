@@ -33,6 +33,7 @@ class CSeqGAN(BaseModel):
                 shape=[self.config.batch_size, self.config.sequence_width, 4],
                 name="start",
             )
+        self.start_token = tf.random_normal((self.config.batch_size, self.config.sequence_width, 4))
 
     def rnn_unit(num_units, num_layers, keep_prob):
 
@@ -348,7 +349,9 @@ class CSeqGAN(BaseModel):
         disc_cost = -tf.reduce_mean(discval_gen)
         # pretrain_cost
         pretrain_cost = self.generator_pretrain_cost(_gen, _target)
-        return pretrain_cost, disc_cost + pretrain_cost
+        # adversarial loss
+        gan_cost = disc_cost*self.config.disc_cost_weight + pretrain_cost
+        return pretrain_cost, gan_cost
 
     def generator_pretrain_cost(self, _gen, _target):
 
@@ -358,7 +361,7 @@ class CSeqGAN(BaseModel):
 
         # supervision cost
         # todo: dtw
-        target_cost = tf.reduce_mean(tf.square(_gen - _target))
+        target_cost = tf.reduce_mean(tf.reduce_sum(tf.square(_gen - _target), axis=(2,3)))
 
         # accumulated cost
         cost = target_cost + smoothness_cost*self.config.smoothness_weight
@@ -464,9 +467,9 @@ class CSeqGAN(BaseModel):
         return clipped_grads
 
     def build_validation_metrics(self):
-
-        sprint(self.gen_vars)
-        sprint(self.disc_vars)
+        # sprint(self.gen_vars)
+        # sprint(self.disc_vars)
+        pass
 
 def average_gradients(grads):
 

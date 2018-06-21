@@ -3,6 +3,8 @@ import os
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 import json
 
+import pprint; ppr = pprint.PrettyPrinter()
+sprint = lambda x: ppr.pprint(x)
 
 class BaseModel:
     def __init__(self, config):
@@ -29,7 +31,7 @@ class BaseModel:
         self.saver.save(sess, model_path)
         print("Model saved")
         with open(model_path + ".params", "w") as f:
-            json.dump(self.config, f)
+            json.dump(self.config, f, indent=4)
         print("Params saved")
 
     # load latest checkpoint from the experiment path defined in the config file
@@ -37,19 +39,22 @@ class BaseModel:
         model_path = os.path.join(self.config.checkpoint_dir, model)
 
         print("Loading model {} ...".format(model_path))
-        if verbose:
-            print("---------------------------------------------------")
-            print("Variables being restored: ")
-            print("---------------------------------------------------")
-            print_tensors_in_checkpoint_file(
-                file_name=model_path, 
-                tensor_name='', 
-                all_tensors=True
-                )
-            print("---------------------------------------------------")
 
         if  os.path.exists(model_path + ".meta") and \
             os.path.exists(model_path + ".index"):
+            if verbose:
+                print("---------------------------------------------------")
+                print("Variables being restored: ")
+                print("---------------------------------------------------")
+                reader = tf.train.NewCheckpointReader(model_path)
+                var_to_shape_map = reader.get_variable_to_shape_map()
+                sprint(var_to_shape_map)
+                # print_tensors_in_checkpoint_file(
+                #     file_name=model_path, 
+                #     tensor_name='', 
+                #     all_tensors=True
+                #     )
+                print("---------------------------------------------------")
             # self.saver = tf.train.import_meta_graph( model_path + '.meta' )
             self.saver.restore(sess, model_path)
             print("Model loaded")

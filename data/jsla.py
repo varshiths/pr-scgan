@@ -71,6 +71,7 @@ class JSLA(BaseData):
 
 	def process_input(self, sentences, indices_of_words=None):
 
+		# obtaining dictionaries
 		try:
 			if indices_of_words is None:
 				indices_of_words = self.indices_of_words
@@ -115,14 +116,15 @@ class JSLA(BaseData):
 
 		if self.config.allfiles == -1:
 			files = files[:4]
+		nfiles = len(files)
 
 		gestures = []
-		for file in files:
+		for i, file in enumerate(files):
 			ffile = os.path.join(data_dir, file)
 
 			data = np.transpose(np.genfromtxt(ffile, delimiter=','))
 			gestures.append(data)
-			print("%s \t %s" % (file, data.shape))
+			print("%4d/%d %s \t %s" % (i, nfiles, file, data.shape))
 
 		gestures = [ sp_pad(x, target_length) for x in gestures ]
 		gestures = np.stack(gestures, axis=0)
@@ -144,27 +146,35 @@ class JSLA(BaseData):
 			for row in data:
 				indices_of_words[row[0]] = int(row[1])-1
 
+		# remove special characters from dictionary
+		del indices_of_words["入"]
+		del indices_of_words["出"]
+		# remove special characters from sentences
+		sentences = [ x[1::3] for x in sentences ]
+
 		return gestures, sentences, indices_of_words
 
 	def next_batch(self):
 
 		if self.iter_set == -1:
 			# split into batches and store in a list 
-			nsamples = self.gestures.shape[0] - self.gestures.shape[0] % self.config.batch_size 
-			nsamples = np.shuffle(np.arange(nsamples))
+			nsamples = self.gestures.shape[0] - self.gestures.shape[0] % self.config.batch_size
+			if nsamples == 0:
+				raise Exception("Not enough data to form a batch")
+			nsamples = np.random.choice(np.arange(self.gestures.shape[0]), size=nsamples, replace=False)
 
-			nsamples = np.reshape(nsamples, [-1, self.batch_size])
+			nsamples = np.reshape(nsamples, [-1, self.config.batch_size])
 
 			self.batches_gestures = self.gestures[nsamples]
 			self.batches_annotations = self.annotations[nsamples]
-			self.iter_set = nsamples.shape[0]
+			self.iter_set = nsamples.shape[0]-1
 
 		batch = {
 			"gestures": self.batches_gestures[self.iter_set],
 			"annotations": self.batches_annotations[self.iter_set]
 		}
 		self.iter_set -= 1
-		return batch
+		return batch, self.iter_set == -1 # indicator to end
 
 	def random_batch(self):
 

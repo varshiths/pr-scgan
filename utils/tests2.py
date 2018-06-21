@@ -72,4 +72,4 @@ def run_data_norm_and_denorm(sess, model, data, config):
 def etc(sess, model, data, config):
 
 	import pdb; pdb.set_trace()
-	batch = data.random_batch()
+	batch = data.next_batch()

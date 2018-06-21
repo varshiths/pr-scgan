@@ -86,7 +86,7 @@ def main(argv):
 
             session.run(tf.global_variables_initializer())
             if FLAGS.model is not None:
-                model.load(session, FLAGS.model)
+                model.load(session, FLAGS.model, verbose=False)
 
             if FLAGS.mode == "train":
                 if FLAGS.architecture == "ff":
@@ -103,7 +103,7 @@ def main(argv):
                 try:
                     model_train.train()
                 except Exception as e:
-                    pass
+                    raise e
                 except KeyboardInterrupt as e:
                     print("Interrupted")
                     pass
