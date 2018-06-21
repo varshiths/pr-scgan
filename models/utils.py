@@ -1,15 +1,13 @@
 import tensorflow as tf
 import math
 
-def soft_min(arr):
+def soft_min(arr, gamma=1.0):
     '''
     Implements soft min among a list of tensors x = [x1, x2, ...]
     of dimensions [b] each returns a [b] sized tensor
     '''
-
-    
-        
-    return arr[0]
+    arr = tf.stack(arr)
+    return -gamma * tf.log( tf.reduce_sum( tf.exp(-arr/gamma), axis=0) )
 
 def soft_dtw(x1, x2):
     '''
@@ -31,6 +29,9 @@ def soft_dtw(x1, x2):
                     r[:, i-1, j  ],
                     r[:, i  , j-1],
                     r[:, i-1, j-1]
-                ])
+                ], gamma=1.0)
 
     return r[:, t1, t2]
+
+if __name__ == '__main__':
+    import pdb; pdb.set_trace()

@@ -59,10 +59,18 @@ class JSLA(BaseData):
 		gesture_means = gestures_shaped[0,0,:,:3]
 		gestures = gestures_shaped[:,:,:,3:]
 
-		# convert to quaternion representations
-		gestures = np.swapaxes(gestures, 0, -1)
-		gestures = euler_to_quart(gestures)
-		gestures = np.swapaxes(gestures, 0, -1)
+		gestures_list = np.array_split(gestures, 8, axis=0)
+		fin_list = []
+
+		for gestures in gestures_list:
+			# convert to quaternion representations
+			gestures = np.swapaxes(gestures, 0, -1)
+			gestures = euler_to_quart(gestures)
+			gestures = np.swapaxes(gestures, 0, -1)
+
+			fin_list.append(gestures)
+
+		gestures = np.concatenate(fin_list, axis=0)
 
 		# encode words into one hot encodings
 		ann_encodings = self.process_input(sentences, indices_of_words)
