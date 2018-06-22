@@ -392,11 +392,12 @@ class CSeqGAN(BaseModel):
             self.epsilon = tf.constant(1e-8)
             self.create_placeholders()
 
-            # split feed into batches for ngpus
-            gesture_a = make_batches(self.config.ngpus, self.gesture)
-            sentence_a = make_batches(self.config.ngpus, self.sentence)
-            latent_a = make_batches(self.config.ngpus, self.latent)
-            start_a = make_batches(self.config.ngpus, self.start)
+            with tf.name_scope("split_batches"):
+                # split feed into batches for ngpus
+                gesture_a = make_batches(self.config.ngpus, self.gesture)
+                sentence_a = make_batches(self.config.ngpus, self.sentence)
+                latent_a = make_batches(self.config.ngpus, self.latent)
+                start_a = make_batches(self.config.ngpus, self.start)
             
             out_gen_list = []
             gen_cost_list = []
@@ -411,19 +412,24 @@ class CSeqGAN(BaseModel):
 
                 gesture, sentence, latent, start = gesture_a[i], sentence_a[i], latent_a[i], start_a[i]
 
-                with tf.device('/gpu:%d' % i):
+                with tf.device('/gpu:%d' % i), tf.name_scope("tower%d"%i):
                     # import pdb; pdb.set_trace()
                     out_gen = self.generator_network(sentence, latent, start, i==0)
 
-                    disc_out_gen = self.discriminator_network(out_gen, i==0)
-                    disc_out_target = self.discriminator_network(gesture)
+                    with tf.name_scope("gen_disc"):
+                        disc_out_gen = self.discriminator_network(out_gen, i==0)
+                    with tf.name_scope("targ_disc"):
+                        disc_out_target = self.discriminator_network(gesture)
 
-                    gen_pretrain_cost, gen_cost = self.generator_costs(disc_out_gen, out_gen, gesture)
-                    disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target, out_gen, gesture, i==0)
+                    with tf.name_scope("gen_costs"):
+                        gen_pretrain_cost, gen_cost = self.generator_costs(disc_out_gen, out_gen, gesture)
+                    with tf.name_scope("disc_costs"):
+                        disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target, out_gen, gesture, i==0)
 
-                    gen_pretrain_grads = self.compute_and_clip_gradients(gen_pretrain_cost, self.gen_vars)
-                    gen_grads = self.compute_and_clip_gradients(gen_cost, self.gen_vars)
-                    disc_grads = self.compute_and_clip_gradients(disc_cost, self.disc_vars)
+                    with tf.name_scope("grad_comp"):
+                        gen_pretrain_grads = self.compute_and_clip_gradients(gen_pretrain_cost, self.gen_vars)
+                        gen_grads = self.compute_and_clip_gradients(gen_cost, self.gen_vars)
+                        disc_grads = self.compute_and_clip_gradients(disc_cost, self.disc_vars)
 
                 out_gen_list.append(out_gen)
                 gen_pretrain_cost_list.append(gen_pretrain_cost)
@@ -433,9 +439,10 @@ class CSeqGAN(BaseModel):
                 gen_grads_list.append(gen_grads)
                 disc_grads_list.append(disc_grads)
 
-            gen_pretrain_grads = average_gradients(gen_pretrain_grads_list)
-            gen_grads = average_gradients(gen_grads_list)
-            disc_grads = average_gradients(disc_grads_list)
+            with tf.name_scope("average_grads"):
+                gen_pretrain_grads = average_gradients(gen_pretrain_grads_list)
+                gen_grads = average_gradients(gen_grads_list)
+                disc_grads = average_gradients(disc_grads_list)
 
             # defining optimizer
             optimizer_gen = tf.train.AdamOptimizer(
@@ -445,19 +452,21 @@ class CSeqGAN(BaseModel):
                 learning_rate=self.config.learning_rate/2
             )
 
-            # main step fetches
-            self.gen_pretrain_grad_step = optimizer_gen.apply_gradients(zip( gen_pretrain_grads, self.gen_vars ))
-            self.gen_grad_step = optimizer_gen.apply_gradients(zip( gen_grads, self.gen_vars ))
-            self.disc_grad_step = optimizer_disc.apply_gradients(zip( disc_grads, self.disc_vars ))
+            with tf.name_scope("var_updates"):
+                # main step fetches
+                self.gen_pretrain_grad_step = optimizer_gen.apply_gradients(zip( gen_pretrain_grads, self.gen_vars ))
+                self.gen_grad_step = optimizer_gen.apply_gradients(zip( gen_grads, self.gen_vars ))
+                self.disc_grad_step = optimizer_disc.apply_gradients(zip( disc_grads, self.disc_vars ))
 
-            # setting other informative fetches
-            self.out_gen = tf.stack(out_gen, axis=0)
-            self.gen_pretrain_cost = tf.reduce_mean(tf.convert_to_tensor(gen_pretrain_cost))
-            self.gen_cost = tf.reduce_mean(tf.convert_to_tensor(gen_cost))
-            self.disc_cost = tf.reduce_mean(tf.convert_to_tensor(disc_cost))
-            self.gen_pretrain_grads = tf.reduce_mean([tf.norm(x) for x in gen_pretrain_grads])
-            self.gen_grads = tf.reduce_mean([tf.norm(x) for x in gen_grads])
-            self.disc_grads = tf.reduce_mean([tf.norm(x) for x in disc_grads])
+            with tf.name_scope("outputs"):
+                # setting other informative fetches
+                self.out_gen = tf.stack(out_gen, axis=0)
+                self.gen_pretrain_cost = tf.reduce_mean(tf.convert_to_tensor(gen_pretrain_cost))
+                self.gen_cost = tf.reduce_mean(tf.convert_to_tensor(gen_cost))
+                self.disc_cost = tf.reduce_mean(tf.convert_to_tensor(disc_cost))
+                self.gen_pretrain_grads = tf.reduce_mean([tf.norm(x) for x in gen_pretrain_grads])
+                self.gen_grads = tf.reduce_mean([tf.norm(x) for x in gen_grads])
+                self.disc_grads = tf.reduce_mean([tf.norm(x) for x in disc_grads])
 
             self.build_validation_metrics()
 
@@ -468,8 +477,7 @@ class CSeqGAN(BaseModel):
         return clipped_grads
 
     def build_validation_metrics(self):
-        # sprint(self.gen_vars)
-        # sprint(self.disc_vars)
+        tf.summary.scalar("cost", self.gen_pretrain_cost)
         pass
 
 def average_gradients(grads):

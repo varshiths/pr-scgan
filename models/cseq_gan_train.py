@@ -14,30 +14,35 @@ class CSeqGANTrain(GANTrain):
 
         for cur_epoch in range(self.config.num_pretrain_epochs):
             print("Pre-Train Epoch:", cur_epoch)
-            self.pretrain_epoch()
+            self.pretrain_epoch(cur_epoch)
+            self.model.igs += 1000 - self.model.gs%1000
 
-    def pretrain_epoch(self):
+    def pretrain_epoch(self, epoch_no):
+
+        fetches = {
+            "step" : self.model.gen_pretrain_grad_step,
+            "cost" : self.model.gen_pretrain_cost,
+            "norm" : self.model.gen_pretrain_grads,
+        }
+        if self.config.log and self.model.summary is not None:
+            fetches["summary"] = self.model.summary
 
         batch, is_end = self.data.next_batch()
         i = 0
         while not is_end:
             i+=1
-            fetches = {
-                "step" : self.model.gen_pretrain_grad_step,
-                "cost" : self.model.gen_pretrain_cost,
-                "norm" : self.model.gen_pretrain_grads,
-            }
-
             feed = {
                 self.model.gesture.name : batch["gestures"],
                 self.model.sentence.name : batch["annotations"],
                 self.model.latent.name : self.sess.run(self.model.latent_distribution_sample),
                 self.model.start.name : self.sess.run(self.model.start_token),
             }
-
             fetched = self.sess.run(fetches, feed)
             print("%5d Cost: %f Norm: %f" % (i, fetched["cost"], fetched["norm"]))
+            if self.config.log and self.model.summary is not None:
+                self.model.writer.add_summary(fetched["summary"], self.model.gs + float(i)/10)
 
+            self.model.igs()
             batch, is_end = self.data.next_batch()
 
     def disc_step(self):

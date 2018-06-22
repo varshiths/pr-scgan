@@ -12,12 +12,14 @@ class BaseModel:
         print("Building model ...")
 
         self.config = config
+        self.writer = tf.summary.FileWriter("/tmp/model")
         # init the global step
         self.init_global_step()
 
         self.build_model()
 
         self.init_saver()
+        self.summary = tf.summary.merge_all()
 
     # save function that saves the checkpoint in the path defined in the config file
     def save(self, sess, model, verbose=False):
@@ -65,8 +67,10 @@ class BaseModel:
     # just initialize a tensorflow variable to use it as global step counter
     def init_global_step(self):
         # DON'T forget to add the global step tensor to the tensorflow trainer
-        with tf.variable_scope('global_step'):
-            self.global_step_tensor = tf.Variable(0, trainable=False, name='global_step')
+        self.gs = 0.0
+
+    def igs(self, amount=1.0):
+        self.gs += amount
 
     def init_saver(self):
         # just copy the following line in your child class

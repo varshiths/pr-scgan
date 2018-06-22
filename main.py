@@ -25,7 +25,7 @@ logging = tf.logging
 
 flags.DEFINE_integer("seed", None, "seed to ensure reproducibility")
 flags.DEFINE_string("architecture", None, "architecture to use")
-flags.DEFINE_integer("tensorboard", 0, "open graph with tensorboard")
+flags.DEFINE_boolean("log", False, "log data and summaries for use with tensorboard")
 
 flags.DEFINE_string("config", None, "config file for hyper-parameters")
 flags.DEFINE_string("dataset", None, "dataset used for the model")
@@ -41,7 +41,7 @@ FLAGS = flags.FLAGS
 def main(argv):
 
     # build config
-    config = process_config(FLAGS.config); config.train_phase = "train" == FLAGS.mode
+    config = process_config(FLAGS.config); config.train_phase = "train" == FLAGS.mode; config.log = FLAGS.log
     config.ngpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
     session_config = tf.ConfigProto(
         allow_soft_placement=True,
@@ -82,9 +82,8 @@ def main(argv):
 
         with tf.Session(config=session_config) as session:
 
-            if FLAGS.tensorboard != 0:
-                writer = tf.summary.FileWriter("/tmp/seq-cgan")
-                writer.add_graph(session.graph)
+            if FLAGS.log:
+                model.writer.add_graph(session.graph)
 
             session.run(tf.global_variables_initializer())
             if FLAGS.model is not None:
