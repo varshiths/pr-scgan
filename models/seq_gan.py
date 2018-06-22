@@ -12,7 +12,7 @@ class SeqGAN(BaseModel):
         # sequence
         self.data = tf.placeholder(
                 dtype=tf.float32,
-                shape=[self.config.batch_size, self.config.time_steps, self.config.sequence_width]
+                shape=[self.config.batch_size, self.config.time_steps, self.config.sequence_width, 4]
             )
 
         self.latent = tf.placeholder(
@@ -22,8 +22,9 @@ class SeqGAN(BaseModel):
 
         self.start = tf.placeholder(
                 dtype=tf.float32,
-                shape=[self.config.batch_size, self.config.sequence_width]
+                shape=[self.config.batch_size, self.config.sequence_width, 4]
             )
+        self.start_token = tf.random_normal((self.config.batch_size, self.config.sequence_width, 4))
 
     def rnn_unit(num_units, num_layers, keep_prob):
 
@@ -50,6 +51,22 @@ class SeqGAN(BaseModel):
                 embedding_latent = tf.contrib.layers.batch_norm(embedding_latent, is_training=self.config.train_phase)
                 embedding_latent = tf.nn.leaky_relu(embedding_latent)
 
+            def quart_activation(inp):
+
+                actv = tf.reshape(inp, [-1, 4])
+                actv = tf.contrib.layers.batch_norm(actv, is_training=self.config.train_phase)
+                # make updates to first column of quart
+                actv = tf.concat([
+                        tf.nn.sigmoid(actv[:, :1]),
+                        tf.nn.tanh(actv[:, 1:]),
+                    ], axis=-1)
+                # normalise for rot quarts
+                actv = actv / tf.norm(actv, axis=-1, keepdims=True)
+                # reshape for feed
+                actv = tf.reshape(actv, [batch_size, -1])
+
+                return actv
+
             with tf.variable_scope("rnn", reuse=None) as rnn_scope:
                 cell = SeqGAN.rnn_unit(
                     self.config.lstm_units_gen, 
@@ -58,7 +75,7 @@ class SeqGAN(BaseModel):
                     )
 
                 with tf.variable_scope("input_embedding"):
-                    wi = tf.get_variable("weight", [self.config.embedding_latent+self.config.sequence_width, self.config.lstm_input_gen])
+                    wi = tf.get_variable("weight", [self.config.embedding_latent+self.config.sequence_width*4, self.config.lstm_input_gen])
                     bi = tf.get_variable("bias", [self.config.lstm_input_gen])
 
                 '''
@@ -87,9 +104,15 @@ class SeqGAN(BaseModel):
                 Not compatible with tf 1.4.1
                 '''
                 def initialize():
-                    next_inputs = tf.concat([embedding_latent, start], axis=1)
+                    start_shaped = tf.reshape(start, [batch_size, -1])
+                    next_inputs = tf.concat([embedding_latent, start_shaped], axis=1)
                     next_inputs = tf.matmul(next_inputs, wi) + bi
-                    next_inputs = tf.contrib.layers.batch_norm(next_inputs, is_training=self.config.train_phase)
+                    next_inputs = tf.contrib.layers.batch_norm(
+                        next_inputs, 
+                        is_training=self.config.train_phase,
+                        scope="token_batchnorm",
+                        reuse=False,
+                        )
                     next_inputs = tf.nn.leaky_relu(next_inputs)
                     finished = tf.tile([False], [batch_size])
                     return (finished, next_inputs)
@@ -101,7 +124,14 @@ class SeqGAN(BaseModel):
                 def next_inputs(time, outputs, state, sample_ids):
                     
                     next_inputs = tf.concat([embedding_latent, outputs], axis=1)
-                    next_inputs = tf.nn.leaky_relu(tf.matmul(next_inputs, wi) + bi)
+                    next_inputs = tf.matmul(next_inputs, wi) + bi
+                    next_inputs = tf.contrib.layers.batch_norm(
+                        next_inputs, 
+                        is_training=self.config.train_phase,
+                        scope="token_batchnorm",
+                        reuse=True,
+                        )
+                    next_inputs = tf.nn.leaky_relu(next_inputs)
                     finished = tf.tile([False], [batch_size])
 
                     # return (finished, next_inputs, next_state)
@@ -120,8 +150,8 @@ class SeqGAN(BaseModel):
                     helper=helper,
                     initial_state=cell.zero_state(batch_size, tf.float32),
                     output_layer=tf.layers.Dense(
-                            units=self.config.sequence_width,
-                            activation=tf.nn.tanh,
+                            units=self.config.sequence_width * 4,
+                            activation=quart_activation,
                             kernel_initializer=tf.random_normal_initializer(),
                             bias_initializer=tf.random_normal_initializer(),
                             name="output_embedding",
@@ -157,6 +187,8 @@ class SeqGAN(BaseModel):
 
                 # outputs = tf.stack(outputs, axis=1)
 
+            outputs = tf.reshape(outputs, [batch_size, self.config.time_steps, self.config.sequence_width, 4])
+
         if define:
             self.gen_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator")
         return outputs
@@ -185,28 +217,49 @@ class SeqGAN(BaseModel):
 
     def discriminator_network(self, seq, define=False):
 
+        seq = tf.reshape(seq, [-1, self.config.time_steps, self.config.sequence_width * 4])
+
         with tf.variable_scope("discriminator", reuse=(not define)):
 
-            seq = tf.reshape(seq, [-1, 1, self.config.time_steps, self.config.sequence_width])
+            # import pdb
+            # pdb.set_trace()
 
-            layers_params = [
-                ([5, 5, 1, 3], [1, 1, 1, 1], [1, 1, 1, 1]),
-                ([5, 5, 3, 1], [1, 1, 1, 1], [1, 1, 1, 1]),
-            ]
-            cnn_unit_disc0 = SeqGAN.cnn_unit(layers_params, "leaky_relu", "SAME", "block0")
+            batch_size = seq.shape[0].value
 
-            out_cnn = cnn_unit_disc0(seq)
-            out_cnn += seq
+            # Convolution with pooling
+            # Features are not spacially correlated
+            out_cnn = tf.reshape(seq, [-1, 1, self.config.time_steps, self.config.sequence_width*4])
 
-            cnn_unit_disc1 = SeqGAN.cnn_unit(layers_params, "leaky_relu", "SAME", "block1")
+            lp0 = [([10, 4,  1, 4 * 10], [1, 1, 2, 4], [1, 1, 2, 1]),]
+            lp1 = [([10, 4, 10, 4 * 10], [1, 1, 2, 4], [1, 1, 2, 1]),]
+            lp2 = [([10, 4, 10, 4 * 10], [1, 1, 2, 4], [1, 1, 2, 1]),]
+            lp3 = [([10, 4, 10,      1], [1, 1, 2, 4], [1, 1, 2, 1]),]
+            cnn_unit_disc0 = SeqGAN.cnn_unit(lp0, "leaky_relu", "SAME", "block0")
+            cnn_unit_disc1 = SeqGAN.cnn_unit(lp1, "leaky_relu", "SAME", "block1")
+            cnn_unit_disc2 = SeqGAN.cnn_unit(lp2, "leaky_relu", "SAME", "block2")
+            cnn_unit_disc3 = SeqGAN.cnn_unit(lp3, "leaky_relu", "SAME", "block3")
+
+            out_cnn = cnn_unit_disc0(out_cnn)
+            out_cnn = tf.transpose(
+                tf.reshape(out_cnn, [batch_size, 10, 4, out_cnn.shape[2].value, 107]), (0,1,3,4,2))
+            out_cnn = tf.reshape(out_cnn, [batch_size, 10, -1, 428])
 
             out_cnn = cnn_unit_disc1(out_cnn)
-            out_cnn += seq
+            out_cnn = tf.transpose(
+                tf.reshape(out_cnn, [batch_size, 10, 4, out_cnn.shape[2].value, 107]), (0,1,3,4,2))
+            out_cnn = tf.reshape(out_cnn, [batch_size, 10, -1, 428])
+
+            out_cnn = cnn_unit_disc2(out_cnn)
+            out_cnn = tf.transpose(
+                tf.reshape(out_cnn, [batch_size, 10, 4, out_cnn.shape[2].value, 107]), (0,1,3,4,2))
+            out_cnn = tf.reshape(out_cnn, [batch_size, 10, -1, 428])
+
+            out_cnn = cnn_unit_disc3(out_cnn)
             
             out_pool = tf.reshape(
                 tf.nn.avg_pool(
                     out_cnn, 
-                    [1, 1, out_cnn.shape[1].value, 1],
+                    [1, 1, out_cnn.shape[2].value, 1],
                     strides=[1,1,1,1],
                     padding="VALID",
                     ), 
@@ -214,32 +267,86 @@ class SeqGAN(BaseModel):
                 )
             
             with tf.variable_scope("prob_embed"):
-                w0 = tf.get_variable("weight0", [self.config.sequence_width, 100])
-                b0 = tf.get_variable("bias0", [100])
+                w0 = tf.get_variable("weight0", [self.config.sequence_width, 50])
+                b0 = tf.get_variable("bias0", [50])
 
-                w1 = tf.get_variable("weight1", [100, 1])
+                w1 = tf.get_variable("weight1", [50, 1])
                 b1 = tf.get_variable("bias1", [1])
 
                 out = tf.nn.leaky_relu( tf.matmul(out_pool, w0) + b0 )
-                out = tf.nn.sigmoid( tf.matmul(out, w1) + b1 )
+                out = tf.matmul(out, w1) + b1
                 out = tf.reshape(out, [-1])
+
+            # # Fully connected network
+
+            '''
+            # time independent compression of each sequence
+            out = tf.reshape(seq, [-1, self.config.sequence_width*4])
+            out = tf.layers.dense(
+                    inputs=out,
+                    units=300,
+                    activation=None,
+                    kernel_initializer=tf.random_normal_initializer(),
+                    bias_initializer=tf.random_normal_initializer(),
+                )
+            out = tf.contrib.layers.batch_norm(out, is_training=self.config.train_phase, activation_fn=tf.nn.leaky_relu)
+            out = tf.layers.dense(
+                    inputs=out,
+                    units=100,
+                    activation=None,
+                    kernel_initializer=tf.random_normal_initializer(),
+                    bias_initializer=tf.random_normal_initializer(),
+                )
+            out = tf.contrib.layers.batch_norm(out, is_training=self.config.train_phase, activation_fn=tf.nn.leaky_relu)
+
+            # ff across time
+            out = tf.reshape(out, [batch_size, -1])
+            out = tf.layers.dense(
+                    inputs=out,
+                    units=1000,
+                    activation=None,
+                    kernel_initializer=tf.random_normal_initializer(),
+                    bias_initializer=tf.random_normal_initializer(),
+                )
+            out = tf.contrib.layers.batch_norm(out, is_training=self.config.train_phase, activation_fn=tf.nn.leaky_relu)
+            out = tf.layers.dense(
+                    inputs=out,
+                    units=1,
+                    activation=None,
+                    kernel_initializer=tf.random_normal_initializer(),
+                    bias_initializer=tf.random_normal_initializer(),
+                )
+            '''
 
         if define:
             self.disc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
         return out
 
-    def generator_cost(self, prob_image_gen):
+    def generator_cost(self, discval_gen, _gen):
 
-        logt = tf.log( prob_image_gen + self.epsilon )
-        cost = -tf.reduce_mean(logt)
+        batch_size = discval_gen.shape[0].value
+
+        differences = tf.reshape(_gen[:,1:,:,:]-_gen[:,:-1,:,:], [batch_size, -1])
+        diff_cost = tf.reduce_mean(tf.sqrt(tf.reduce_mean(tf.square(differences), axis=1)))
+        cost = -tf.reduce_mean(discval_gen) + self.config.smoothness_weight*diff_cost
         return cost
 
-    def discriminator_cost(self, prob_image_gen, prob_image_target):
+    def discriminator_cost(self, discval_gen, discval_target, _gen, _target):
 
-        logtg = tf.log( 1 - prob_image_gen + self.epsilon )
-        logtt = tf.log( prob_image_target + self.epsilon )
+        batch_size = _target.shape[0].value
 
-        cost = -tf.reduce_mean( logtt + logtg )
+        ep = tf.random_uniform(shape=[batch_size, 1, 1, 1], minval=0, maxval=1)
+        with tf.variable_scope("cost", reuse=tf.AUTO_REUSE):
+            x = tf.get_variable("temp", [batch_size, self.config.time_steps, self.config.sequence_width, 4], trainable=False)
+            x = tf.assign(x, _target*ep + _gen*(1-ep))
+        # x = tf.Variable(_target*ep + _gen*(1-ep))
+
+        disc_x = self.discriminator_network(x)
+        grads = tf.reshape(tf.gradients(disc_x, x)[0], [batch_size, -1])
+        grad_error = tf.reduce_mean(tf.square(tf.norm(grads, axis=1) - 1))
+
+        cost = tf.reduce_mean(discval_gen)-tf.reduce_mean(discval_target) + \
+                self.config.grad_penalty_weight*tf.reduce_mean(grad_error)
         return cost
 
     def build_model(self):
@@ -271,8 +378,8 @@ class SeqGAN(BaseModel):
                         disc_out_gen = self.discriminator_network(out_gen, i==0)
                         disc_out_target = self.discriminator_network(data)
 
-                        gen_cost = self.generator_cost(disc_out_gen)
-                        disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target)
+                        gen_cost = self.generator_cost(disc_out_gen, out_gen)
+                        disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target, out_gen, data)
 
                         gen_grads = self.compute_and_clip_gradients(gen_cost, self.gen_vars)
                         disc_grads = self.compute_and_clip_gradients(disc_cost, self.disc_vars)
@@ -291,7 +398,7 @@ class SeqGAN(BaseModel):
             learning_rate=self.config.learning_rate
         )
 
-        optimizer_disc = tf.train.GradientDescentOptimizer(
+        optimizer_disc = tf.train.AdamOptimizer(
             learning_rate=self.config.learning_rate/2
         )
 
@@ -303,8 +410,8 @@ class SeqGAN(BaseModel):
         self.out_gen = tf.stack(out_gen, axis=0)
         self.gen_cost = tf.reduce_mean(tf.convert_to_tensor(gen_cost))
         self.disc_cost = tf.reduce_mean(tf.convert_to_tensor(disc_cost))
-        self.gen_grads = gen_grads
-        self.disc_grads = disc_grads
+        self.gen_grads = tf.reduce_mean([tf.norm(x) for x in gen_grads])
+        self.disc_grads = tf.reduce_mean([tf.norm(x) for x in disc_grads])
 
         self.build_validation_metrics()
 
@@ -315,6 +422,10 @@ class SeqGAN(BaseModel):
         return clipped_grads
 
     def build_validation_metrics(self):
+
+        pp.pprint(self.gen_vars)
+        pp.pprint(self.disc_vars)
+
         pass
 
 def average_gradients(grads):

@@ -5,10 +5,10 @@
 
   "nfiles": -1,
 
-  "time_steps": 375,
-  "sequence_length": 750,
+  "time_steps": 500,
+  "sequence_length": 500,
 
-  "sequence_width": 642,
+  "sequence_width": 107,
   
   "latent_state_size": 1000,
   "embedding_latent": 2000,
@@ -24,14 +24,15 @@
 
   "learning_rate": 0.001,
   "disc_ascents": 1,
-  "gen_descents": 5,
+  "gen_descents": 1,
   "max_grad": 10,
 
-  "grad_penalty_weight": 10.0,
+  "grad_penalty_weight": 1.0,
+  "smoothness_weight": 1.0,
 
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
 
-  "checkpoint_dir": "save/seqgan/",
+  "checkpoint_dir": "save/seqgan_quart/",
   "max_to_keep": 5,
   
   "dummy":0
