@@ -367,11 +367,11 @@ class CSeqGAN(BaseModel):
         cost = target_cost + smoothness_cost*self.config.smoothness_weight
         return cost
 
-    def discriminator_cost(self, discval_gen, discval_target, _gen, _target):
+    def discriminator_cost(self, discval_gen, discval_target, _gen, _target, define=False):
 
         batch_size = _target.shape[0].value
 
-        with tf.variable_scope("cost", reuse=False):
+        with tf.variable_scope("cost", reuse=(not define)):
             ep = tf.random_uniform(shape=[batch_size, 1, 1, 1], minval=0, maxval=1)
             x = tf.get_variable("temp", [batch_size, self.config.sequence_length, self.config.sequence_width, 4], trainable=False)
             x = tf.assign(x, _target*ep + _gen*(1-ep))
@@ -418,7 +418,7 @@ class CSeqGAN(BaseModel):
                     disc_out_target = self.discriminator_network(gesture)
 
                     gen_pretrain_cost, gen_cost = self.generator_costs(disc_out_gen, out_gen, gesture)
-                    disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target, out_gen, gesture)
+                    disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target, out_gen, gesture, i==0)
 
                     gen_pretrain_grads = self.compute_and_clip_gradients(gen_pretrain_cost, self.gen_vars)
                     gen_grads = self.compute_and_clip_gradients(gen_cost, self.gen_vars)
