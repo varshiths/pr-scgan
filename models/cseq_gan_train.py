@@ -31,7 +31,7 @@ class CSeqGANTrain(GANTrain):
             feed = {
                 self.model.gesture.name : batch["gestures"],
                 self.model.sentence.name : batch["annotations"],
-                self.model.latent.name : np.random.randn(self.config.batch_size, self.config.latent_state_size),
+                self.model.latent.name : self.sess.run(self.model.latent_distribution_sample),
                 self.model.start.name : self.sess.run(self.model.start_token),
             }
 
@@ -53,7 +53,7 @@ class CSeqGANTrain(GANTrain):
 
         feed = {
             self.model.data.name : batch["data"],
-            self.model.latent.name : np.random.randn(self.config.batch_size, self.config.latent_state_size),
+            self.model.latent.name : self.sess.run(self.model.latent_distribution_sample),
             self.model.start.name : self.sess.run(self.model.start_token),
         }
 
@@ -75,7 +75,7 @@ class CSeqGANTrain(GANTrain):
         
         feed = {
             # self.model.data.name : batch["data"],
-            self.model.latent.name : np.random.randn(self.config.batch_size, self.config.latent_state_size),
+            self.model.latent.name : self.sess.run(self.model.latent_distribution_sample),
             self.model.start.name : self.sess.run(self.model.start_token),
         }
 

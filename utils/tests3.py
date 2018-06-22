@@ -19,8 +19,8 @@ def run_cseqgan_and_output_org_out(sess, model, data, config, dirname):
 
 	feed = {
 		model.sentence.name	: batch["annotations"],
-		model.latent.name	: np.random.randn(config.batch_size, config.latent_state_size),
-		model.start.name	: np.zeros((config.batch_size, config.sequence_width, 4)),
+		model.latent.name	: sess.run(model.latent_distribution_sample),
+		model.start.name	: sess.run(model.start_token),
 	}
 	produced = run_with_input_and_denormalize(sess, model, data.denormalise, feed)
 	original = data.denormalise(batch["gestures"])
