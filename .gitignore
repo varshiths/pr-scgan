@@ -105,6 +105,7 @@ ENV/
 
 # data directories
 *_data/
+log/
 # saved models directory
 save/
 # scripts directory

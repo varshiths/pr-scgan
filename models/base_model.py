@@ -12,7 +12,7 @@ class BaseModel:
         print("Building model ...")
 
         self.config = config
-        self.writer = tf.summary.FileWriter("/tmp/model")
+        self.writer = tf.summary.FileWriter(self.config.log_dir)
         # init the global step
         self.init_global_step()
 

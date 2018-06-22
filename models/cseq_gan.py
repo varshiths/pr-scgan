@@ -123,6 +123,8 @@ class CSeqGAN(BaseModel):
                     dtype=tf.float32,
                 )
             outputs = tf.concat(outputs[0], axis=2)
+            ###~~~###
+            tf.summary.histogram("outputs", outputs)
 
         return outputs
 
@@ -166,6 +168,9 @@ class CSeqGAN(BaseModel):
                 )
             cell_initial_state = cell.zero_state(batch_size, tf.float32)
 
+            ###~~~###
+            tf.summary.histogram("latent", latent)
+
             # input embedding
             input_embedding = tf.layers.Dense(self.config.lstm_input_gen, name="input_embedding")
 
@@ -186,6 +191,7 @@ class CSeqGAN(BaseModel):
 
                     ws_split = [ tf.squeeze(tf.matmul(tf.expand_dims(p, axis=1),s), axis=1) for p,s in zip(prob_split, states_split) ]
                     ctxt = tf.concat(ws_split, axis=1)
+
                 return ctxt
 
             def initialize():

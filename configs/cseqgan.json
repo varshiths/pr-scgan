@@ -42,6 +42,7 @@
   "words_file": "/home/user/shuwa/home/data/01_Label/label_sjis.csv",
 
   "checkpoint_dir": "save/cseqgan/",
+  "log_dir": "log/",
   "max_to_keep": 5,
   
   "dummy":0
