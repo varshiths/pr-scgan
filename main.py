@@ -10,10 +10,12 @@ from tensorflow.python.client import device_lib
 import tensorflow as tf
 from models import *
 from utils.config import process_config
-from utils.tests import *
-from utils.tests2 import *
 from data import *
 from data.utils import *
+
+from utils.tests import *
+from utils.tests2 import *
+from utils.tests3 import *
 
 import numpy as np
 
@@ -126,6 +128,8 @@ def main(argv):
                     run_quart_model_and_output_csv(session, model, data, config, "output/csv_qwgan")
                 elif FLAGS.test_index == 5:
                     run_data_norm_and_denorm(session, model, data, config)
+                elif FLAGS.test_index == 6:
+                    run_cseqgan_and_output_org_out(session, model, data, config, "output/csv_cseq")
                 elif FLAGS.test_index == -1:
                     etc(session, model, data, config)
 

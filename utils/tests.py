@@ -102,3 +102,8 @@ def run_model_and_output_csv(sess, model, data, config, dirname):
 
 	for i in range(gesture.shape[0]):
 		np.savetxt("%s/gesture.%d.csv" % (dirname, i), np.transpose(gesture[i, :, :]), delimiter=",")
+
+def etc(sess, model, data, config):
+
+	import pdb; pdb.set_trace()
+	batch = data.next_batch()

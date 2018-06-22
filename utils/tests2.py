@@ -68,8 +68,3 @@ def run_data_norm_and_denorm(sess, model, data, config):
 
 	jsld	 = np.reshape(jsld, [-1, 64, 107, 6])
 	jsld_nd	 = np.reshape(jsld_nd, [-1, 64, 107, 6])
-
-def etc(sess, model, data, config):
-
-	import pdb; pdb.set_trace()
-	batch = data.next_batch()
