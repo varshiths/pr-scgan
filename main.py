@@ -41,7 +41,7 @@ FLAGS = flags.FLAGS
 def main(argv):
 
     # build config
-    config = process_config(FLAGS.config); config.train_phase = "train" == FLAGS.mode; config.log = FLAGS.log
+    config = process_config(FLAGS.config); config.train_phase = "train" == FLAGS.mode; config.log = FLAGS.log; config.save = FLAGS.save
     config.ngpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
     session_config = tf.ConfigProto(
         allow_soft_placement=True,
@@ -82,12 +82,15 @@ def main(argv):
 
         with tf.Session(config=session_config) as session:
 
-            if FLAGS.log:
-                model.writer.add_graph(session.graph)
-
             session.run(tf.global_variables_initializer())
             if FLAGS.model is not None:
                 model.load(session, FLAGS.model, verbose=False)
+
+            if FLAGS.log:
+                model.writer.add_graph(session.graph)
+                model.writer.add_session_log(
+                    tf.SessionLog(status=tf.SessionLog.START),
+                    global_step=model.gs)
 
             if FLAGS.mode == "train":
                 if FLAGS.architecture == "ff":

@@ -15,7 +15,6 @@ class CSeqGANTrain(GANTrain):
         for cur_epoch in range(self.config.num_pretrain_epochs):
             print("Pre-Train Epoch:", cur_epoch)
             self.pretrain_epoch(cur_epoch)
-            self.model.igs += 1000 - self.model.gs%1000
 
     def pretrain_epoch(self, epoch_no):
 
@@ -42,7 +41,7 @@ class CSeqGANTrain(GANTrain):
             if self.config.log and self.model.summary is not None:
                 self.model.writer.add_summary(fetched["summary"], self.model.gs + float(i)/10)
 
-            self.model.igs()
+            self.model.igs(self.sess)
             batch, is_end = self.data.next_batch()
 
     def disc_step(self):

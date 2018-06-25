@@ -29,12 +29,11 @@ class BaseModel:
 
         model_path = os.path.join(self.config.checkpoint_dir, model)
 
-        print("Saving model {} ...".format(model_path))
-        self.saver.save(sess, model_path)
-        print("Model saved")
+        print("Saving model {}-{} ...".format(model_path, int(self.gs)))
+        self.saver.save(sess, model_path, global_step=int(self.gs))
         with open(model_path + ".params", "w") as f:
             json.dump(self.config, f, indent=4)
-        print("Params saved")
+        print("Model and params saved")
 
     # load latest checkpoint from the experiment path defined in the config file
     def load(self, sess, model, verbose=False):
@@ -60,6 +59,8 @@ class BaseModel:
             # self.saver = tf.train.import_meta_graph( model_path + '.meta' )
             self.saver.restore(sess, model_path)
             print("Model loaded")
+            self.gs = float(model_path[model_path.rfind("-")+1:])
+            print("Restoring global step to %d" % self.gs)
         else:
             print("File not found ... Random initialization ...")
             sess.run(tf.global_variables_initializer())
@@ -69,14 +70,16 @@ class BaseModel:
         # DON'T forget to add the global step tensor to the tensorflow trainer
         self.gs = 0.0
 
-    def igs(self, amount=1.0):
+    def igs(self, session=None, amount=1.0):
         self.gs += amount
+        if self.gs % self.config.save_freq == 0 and session is not None and self.config.save is not None:
+            self.save(session, self.config.save)
 
     def init_saver(self):
         # just copy the following line in your child class
         varlist = tf.trainable_variables()
         if len(varlist) != 0:
-            self.saver = tf.train.Saver(varlist)
+            self.saver = tf.train.Saver(varlist, max_to_keep=self.config.max_to_keep)
 
     def build_model(self):
         pass

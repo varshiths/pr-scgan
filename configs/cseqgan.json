@@ -20,13 +20,13 @@
 
   "keep_prob" : 0.2,
 
-  "att_heads" : 8,
+  "att_heads" : 1,
 
   "lstm_input_gen" : 512,
   "lstm_units_gen" : 512,
   "lstm_layers_gen" : 3,
   
-  "learning_rate": 0.00001,
+  "learning_rate": 0.001,
   "disc_ascents": 2,
   "gen_descents": 2,
   "max_grad": 1000,
@@ -43,7 +43,8 @@
 
   "checkpoint_dir": "save/cseqgan/",
   "log_dir": "log/",
-  "max_to_keep": 5,
+  "max_to_keep": 1000,
+  "save_freq": 1000,
   
   "dummy":0
 }

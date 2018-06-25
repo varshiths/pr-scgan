@@ -34,7 +34,8 @@ class CSeqGAN(BaseModel):
                 name="start",
             )
         self.start_token = tf.zeros((self.config.batch_size, self.config.sequence_width, 4))
-        self.latent_distribution_sample = tf.random_normal((self.config.batch_size, self.config.latent_state_size))
+        self.latent_distribution_sample = tf.zeros((self.config.batch_size, self.config.latent_state_size))
+        # self.latent_distribution_sample = tf.random_normal((self.config.batch_size, self.config.latent_state_size))
 
     def rnn_unit(num_units, num_layers, keep_prob):
 
@@ -99,12 +100,12 @@ class CSeqGAN(BaseModel):
                 table = tf.layers.Dense(self.config.annot_embedding, name="table")
                 embed_inputs = table(sentence)
 
+            ###~~~###
+            tf.summary.histogram("embed_inputs", embed_inputs)
             # position embeddings
             embed_inputs = self.position_embeddings(embed_inputs)
-
             # cfblock
             cfblock_outputs = self.cfblock(embed_inputs)
-
             # rnn
             cells_fw = CSeqGAN.rnn_unit(
                     self.config.lstm_units_enc, 
@@ -123,8 +124,6 @@ class CSeqGAN(BaseModel):
                     dtype=tf.float32,
                 )
             outputs = tf.concat(outputs[0], axis=2)
-            ###~~~###
-            tf.summary.histogram("outputs", outputs)
 
         return outputs
 
@@ -167,9 +166,6 @@ class CSeqGAN(BaseModel):
                 self.config.keep_prob
                 )
             cell_initial_state = cell.zero_state(batch_size, tf.float32)
-
-            ###~~~###
-            tf.summary.histogram("latent", latent)
 
             # input embedding
             input_embedding = tf.layers.Dense(self.config.lstm_input_gen, name="input_embedding")
@@ -242,8 +238,6 @@ class CSeqGAN(BaseModel):
                 output_layer=tf.layers.Dense(
                         units=self.config.sequence_width * 4,
                         activation=quart_activation,
-                        kernel_initializer=None,
-                        bias_initializer=None,
                         name="output_embedding",
                     ),
                 )
@@ -393,7 +387,8 @@ class CSeqGAN(BaseModel):
 
     def build_model(self):
 
-        with tf.variable_scope(tf.get_variable_scope()):
+        initializer = tf.random_normal_initializer(0.0, 0.1)
+        with tf.variable_scope(tf.get_variable_scope(), initializer=initializer):
 
             self.epsilon = tf.constant(1e-8)
             self.create_placeholders()

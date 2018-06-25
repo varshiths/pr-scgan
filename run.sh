@@ -6,6 +6,6 @@ time python3 main.py \
 	--architecture cseqgan \
 	--dataset jsla \
 	--mode train \
-	--model trial0 \
-	--save trial0 \
+	--model rninit0-445 \
+	--save rninit0 \
 	# --test_index 6 \
