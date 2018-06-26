@@ -34,8 +34,11 @@ class CSeqGAN(BaseModel):
                 name="start",
             )
         self.start_token = tf.zeros((self.config.batch_size, self.config.sequence_width, 4))
-        self.latent_distribution_sample = tf.zeros((self.config.batch_size, self.config.latent_state_size))
-        # self.latent_distribution_sample = tf.random_normal((self.config.batch_size, self.config.latent_state_size))
+        self.latent_distribution_sample = tf.random_normal(
+            shape=(self.config.batch_size, self.config.latent_state_size),
+            mean=0.0,
+            stddev=self.config.latent_std,
+            )
 
     def rnn_unit(num_units, num_layers, keep_prob):
 

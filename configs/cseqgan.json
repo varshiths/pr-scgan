@@ -1,10 +1,4 @@
 {
-  "num_pretrain_epochs": 200,
-  "num_epochs": 0,
-  "batch_size": 4,
-
-  "allfiles": 1,
-
   "sequence_length": 768,
   "sequence_width": 107,
 
@@ -18,25 +12,31 @@
   "latent_state_size": 256,
   "embed_states": 512,
 
-  "keep_prob" : 0.2,
-
   "att_heads" : 1,
 
   "lstm_input_gen" : 512,
   "lstm_units_gen" : 512,
   "lstm_layers_gen" : 3,
-  
-  "init_std": 0.01,
-  "learning_rate": 0.001,
+
+  "num_pretrain_epochs": 200,
+  "num_epochs": 0,
   "disc_ascents": 2,
   "gen_descents": 2,
+
+  "batch_size": 4,
+
+  "latent_std": 0.0,
+  "init_std": 0.01,
+  "learning_rate": 0.001,
   "max_grad": 1.0,
+  "keep_prob" : 0.2,
 
   "smoothness_threshold": 1.5e-5,
   "disc_cost_weight": 0.0,
   "grad_penalty_weight": 1.0,
   "smoothness_weight": 5e3,
 
+  "allfiles": 1,
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
   "annot_dir": "/home/user/shuwa/home/data/00_Annotations_20180427/",
   "sentences_file": "/home/user/shuwa/home/data/01_Label/list.csv",
