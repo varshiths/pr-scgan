@@ -42,12 +42,12 @@ def main(argv):
 
     # build config
     config = process_config(FLAGS.config); config.train_phase = "train" == FLAGS.mode; config.log = FLAGS.log; config.save = FLAGS.save
-    config.ngpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
     session_config = tf.ConfigProto(
         allow_soft_placement=True,
         log_device_placement=False,
         )
     session_config.gpu_options.allow_growth = True
+    config.ngpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
 
     if FLAGS.dataset == "mnist":
         data = MNIST(config)
@@ -81,6 +81,9 @@ def main(argv):
             model = BaseModel(config)
 
         with tf.Session(config=session_config) as session:
+
+            # from tensorflow.python import debug as tf_debug
+            # session = tf_debug.TensorBoardDebugWrapperSession(session, 'localhost:6064', send_traceback_and_source_code=False)
 
             session.run(tf.global_variables_initializer())
             if FLAGS.model is not None:
@@ -136,14 +139,4 @@ def main(argv):
                     etc(session, model, data, config)
 
 if __name__ == '__main__':
-    try:
-        cProfile.run("tf.app.run()", "/tmp/profdump")
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-
-    with open("run.prof", "w") as f:
-        p = pstats.Stats("/tmp/profdump", stream=f)
-        p.strip_dirs()
-        p.sort_stats("cumulative")
-        p.print_stats()
+    tf.app.run()

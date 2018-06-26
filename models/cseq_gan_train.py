@@ -21,7 +21,7 @@ class CSeqGANTrain(GANTrain):
         fetches = {
             "step" : self.model.gen_pretrain_grad_step,
             "cost" : self.model.gen_pretrain_cost,
-            "norm" : self.model.gen_pretrain_grads,
+            # "norm" : self.model.gen_pretrain_grads,
         }
         if self.config.log and self.model.summary is not None:
             fetches["summary"] = self.model.summary
@@ -37,7 +37,8 @@ class CSeqGANTrain(GANTrain):
                 self.model.start.name : self.sess.run(self.model.start_token),
             }
             fetched = self.sess.run(fetches, feed)
-            print("%5d Cost: %f Norm: %f" % (i, fetched["cost"], fetched["norm"]))
+            print("%5d Cost: %f" % (i, fetched["cost"]))
+            # print("%5d Cost: %f Norm: %f" % (i, fetched["cost"], fetched["norm"]))
             if self.config.log and self.model.summary is not None:
                 self.model.writer.add_summary(fetched["summary"], self.model.gs + float(i)/10)
 

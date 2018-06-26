@@ -387,7 +387,7 @@ class CSeqGAN(BaseModel):
 
     def build_model(self):
 
-        initializer = tf.random_normal_initializer(0.0, 0.1)
+        initializer = tf.random_normal_initializer(0.0, self.config.init_std)
         with tf.variable_scope(tf.get_variable_scope(), initializer=initializer):
 
             self.epsilon = tf.constant(1e-8)
@@ -427,7 +427,7 @@ class CSeqGAN(BaseModel):
                     with tf.name_scope("disc_costs"):
                         disc_cost = self.discriminator_cost(disc_out_gen, disc_out_target, out_gen, gesture, i==0)
 
-                    with tf.name_scope("grad_comp"):
+                    with tf.variable_scope("grad_comp"):
                         gen_pretrain_grads = self.compute_and_clip_gradients(gen_pretrain_cost, self.gen_vars)
                         gen_grads = self.compute_and_clip_gradients(gen_cost, self.gen_vars)
                         disc_grads = self.compute_and_clip_gradients(disc_cost, self.disc_vars)
@@ -465,9 +465,16 @@ class CSeqGAN(BaseModel):
                 self.gen_pretrain_cost = tf.reduce_mean(tf.convert_to_tensor(gen_pretrain_cost))
                 self.gen_cost = tf.reduce_mean(tf.convert_to_tensor(gen_cost))
                 self.disc_cost = tf.reduce_mean(tf.convert_to_tensor(disc_cost))
+
                 self.gen_pretrain_grads = tf.reduce_mean([tf.norm(x) for x in gen_pretrain_grads])
                 self.gen_grads = tf.reduce_mean([tf.norm(x) for x in gen_grads])
                 self.disc_grads = tf.reduce_mean([tf.norm(x) for x in disc_grads])
+
+            ###~~~###
+            for var, grad in zip(self.gen_vars, gen_pretrain_grads):
+                tf.summary.histogram(var.name, var)
+                tf.summary.scalar(var.name + "_mean", tf.reduce_mean(grad))
+            # tf.summary.scalar("gen_pretrain_norms", self.gen_pretrain_grads)
 
             self.build_validation_metrics()
 

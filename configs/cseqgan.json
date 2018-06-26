@@ -1,7 +1,7 @@
 {
   "num_pretrain_epochs": 200,
   "num_epochs": 0,
-  "batch_size": 1,
+  "batch_size": 4,
 
   "allfiles": 1,
 
@@ -26,10 +26,11 @@
   "lstm_units_gen" : 512,
   "lstm_layers_gen" : 3,
   
+  "init_std": 0.01,
   "learning_rate": 0.001,
   "disc_ascents": 2,
   "gen_descents": 2,
-  "max_grad": 1000,
+  "max_grad": 1.0,
 
   "smoothness_threshold": 1.5e-5,
   "disc_cost_weight": 0.0,
