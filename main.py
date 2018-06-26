@@ -110,7 +110,8 @@ def main(argv):
                 try:
                     model_train.train()
                 except Exception as e:
-                    raise e
+                    import traceback; traceback.print_exc()
+                    pass
                 except KeyboardInterrupt as e:
                     print("Interrupted")
                     pass
