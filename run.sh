@@ -4,7 +4,7 @@ time python3 main.py \
 	--seed 0 \
 	--dataset jsla \
 	--config configs/cseqgan.json \
-	# --architecture cseqgan \
+	--architecture cseqgan \
 	# --mode train \
 	# --model rninit1 \
 	# --save rninit1 \

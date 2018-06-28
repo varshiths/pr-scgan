@@ -6,7 +6,8 @@
   "annot_seq_length": 32,
   "annot_embedding": 128,
 
-  "lstm_units_enc" : 128,
+  "lstm_input_enc" : 256,
+  "lstm_units_enc" : 256,
   "lstm_layers_enc" : 8,
 
   "latent_state_size": 256,
