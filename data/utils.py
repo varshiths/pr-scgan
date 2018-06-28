@@ -125,25 +125,35 @@ def euler_to_quart(a):
     '''
     a = np.deg2rad(a).astype(np.float64)
 
-    r, p, y = a
+    r = a[0].view()
+    p = a[1].view()
+    y = a[2].view()
+    # r, p, y = a
 
     # matrix = eulerAnglesToRotationMatrix((x,y,z))
     # qrt = Quaternion(matrix=matrix)
 
-    cr = np.cos(r/2); sr = np.sin(r/2)
-    cp = np.cos(p/2); sp = np.sin(p/2)
-    cy = np.cos(y/2); sy = np.sin(y/2)
+    # # create memory mapped {c,s}{r,p,y} q{0..3}
 
-    q0 = cy*cr*cp + sy*sr*sp
-    q1 = cy*sr*cp - sy*cr*sp
-    q2 = cy*cr*sp + sy*sr*cp
-    q3 = sy*cr*cp - cy*sr*sp
+    # cr = np.cos(r/2); sr = np.sin(r/2)
+    # cp = np.cos(p/2); sp = np.sin(p/2)
+    # cy = np.cos(y/2); sy = np.sin(y/2)
 
+    # q0 = np.cos(y/2)*np.cos(r/2)*np.cos(p/2) + np.sin(y/2)*np.sin(r/2)*np.sin(p/2)
+    # q1 = np.cos(y/2)*np.sin(r/2)*np.cos(p/2) - np.sin(y/2)*np.cos(r/2)*np.sin(p/2)
+    # q2 = np.cos(y/2)*np.cos(r/2)*np.sin(p/2) + np.sin(y/2)*np.sin(r/2)*np.cos(p/2)
+    # q3 = np.sin(y/2)*np.cos(r/2)*np.cos(p/2) - np.cos(y/2)*np.sin(r/2)*np.sin(p/2)
 
-    qrt = np.stack([q0, q1, q2, q3], axis=0)    
-    qrt = ((qrt[0]>0).astype(int)*2-1) * qrt
+    qrt = np.stack([
+        np.cos(y/2)*np.cos(r/2)*np.cos(p/2) + np.sin(y/2)*np.sin(r/2)*np.sin(p/2), 
+        np.cos(y/2)*np.sin(r/2)*np.cos(p/2) - np.sin(y/2)*np.cos(r/2)*np.sin(p/2), 
+        np.cos(y/2)*np.cos(r/2)*np.sin(p/2) + np.sin(y/2)*np.sin(r/2)*np.cos(p/2), 
+        np.sin(y/2)*np.cos(r/2)*np.cos(p/2) - np.cos(y/2)*np.sin(r/2)*np.sin(p/2), 
+        ], axis=0)
+    qrtn = ((qrt[0]>0).astype(int)*2-1) * qrt
+    del qrt
 
-    return qrt.astype(np.float32)
+    return qrtn.astype(np.float32)
 
 def quart_to_euler(qrt):
     '''

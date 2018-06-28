@@ -9,6 +9,7 @@ from .base_data import BaseData
 
 import unicodedata as ucd
 
+from memory_profiler import profile
 from .utils import *
 
 import pprint; ppr = pprint.PrettyPrinter()
@@ -32,8 +33,8 @@ class JSLA(BaseData):
 		else:
 			print("Loading data from data directory...")
 			data = self.load_jsl_from_folder()
-			normalised = self.normalise(data)
-			storage = self.split_into_test_train_eval(normalised)
+			normalised = self.normalise(data); del data
+			storage = self.split_into_test_train_eval(normalised); del normalised
 			self.save_npy(storage)
 
 		self.gesture_means = storage["gesture_means"]
@@ -50,6 +51,7 @@ class JSLA(BaseData):
 		self.gestures_test = storage["gestures_test"]
 		self.annotations_test = storage["annotations_test"]
 		self.ann_lengths_test = storage["ann_lengths_test"]
+		del storage
 
 	def load_npy(self):
 		arrays = []
@@ -64,6 +66,7 @@ class JSLA(BaseData):
 		print("Saving data to npy files...")
 		np.save(self.data_path, arrays)
 
+	@profile(precision=4)
 	def split_into_test_train_eval(self, normalized_data, seed=0):
 		gestures, gesture_means, ann_encodings, lengths, indices_of_words = normalized_data
 
@@ -92,6 +95,7 @@ class JSLA(BaseData):
 		}
 		return split_data
 
+	@profile(precision=4)
 	def normalise(self, data):
 
 		gestures, sentences, indices_of_words = data
@@ -107,16 +111,25 @@ class JSLA(BaseData):
 		gesture_means = gestures_shaped[0,0,:,:3]
 		gestures = gestures_shaped[:,:,:,3:]
 
-		# split to avoid OOM
-		gestures_list = np.array_split(gestures, 8, axis=0)
+		# from tempfile import mkdtemp
+		# filename = os.path.join(mkdtemp(), 'newfile.dat')
+		# gmmap = np.memmap(filename, dtype='float32', shape=gestures.shape)
+		# gmmap[:] = gestures[:]
+
+		# # split to avoid OOM
+		gestures_list = np.array_split(gestures, 16, axis=0); del gestures
 		fin_list = []
 		for gestures in gestures_list:
 			# convert to quaternion representations
-			gestures = np.swapaxes(gestures, 0, -1)
-			gestures = euler_to_quart(gestures)
-			gestures = np.swapaxes(gestures, 0, -1)
-			fin_list.append(gestures)
+			gestures1 = np.swapaxes(gestures, 0, -1); del gestures
+			gestures2 = euler_to_quart(gestures1); del gestures1
+			gestures3 = np.swapaxes(gestures2, 0, -1); del gestures2
+			fin_list.append(gestures3); del gestures3
 		gestures = np.concatenate(fin_list, axis=0)
+
+		# gestures = np.swapaxes(gestures, 0, -1)
+		# gestures = euler_to_quart(gestures)
+		# gestures = np.swapaxes(gestures, 0, -1)
 
 		# encode words into one hot encodings
 		ann_encodings, lengths = self.process_input(sentences, indices_of_words)
@@ -167,7 +180,7 @@ class JSLA(BaseData):
 		# with codecs.open(self.config.sentences_file, "r", encoding="shiftjis") as f:
 		# 	data = csv.reader(f, delimiter=",")
 		# 	files = [row[0] for row in data]
-		files = ofiles[:4] if self.config.allfiles == -1 else ofiles
+		files = ofiles[:100] if self.config.allfiles == -1 else ofiles
 		nfiles = len(files)
 
 		print("Process gestures")
