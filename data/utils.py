@@ -3,6 +3,7 @@ import csv
 import numpy as np
 from pyquaternion import Quaternion
 import multiprocessing
+import warnings
 
 
 def num_elements(shape):
@@ -32,10 +33,12 @@ def convert_to_one_hot(data, rang):
 def general_pad(x, tgt_len):
 
     pads = tgt_len-x.shape[0]
-    pads_2 = int(pads/2)
+    ndims = len(x.shape)
+    parr = [(0,pads)] + [(0,0)]*(ndims-1)
     if pads >= 0:
-        return np.pad(x, [ (pads_2,pads-pads_2), (0,0) ], 'edge')
+        return np.pad(x, parr, 'edge')
     else:
+        warnings.warn("Downsampling sequence by %d" % pads)
         nds = np.sort(np.random.choice(np.arange(x.shape[0]), tgt_len, replace=False))
         return x[nds]
 

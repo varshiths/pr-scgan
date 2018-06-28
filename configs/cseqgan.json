@@ -1,22 +1,22 @@
 {
-  "sequence_length": 768,
+  "sequence_length": 1024,
   "sequence_width": 107,
 
-  "vocab_size": 277,
-  "annot_seq_length": 16,
+  "vocab_size": 264,
+  "annot_seq_length": 32,
   "annot_embedding": 128,
 
-  "lstm_units_enc" : 256,
-  "lstm_layers_enc" : 3,
+  "lstm_units_enc" : 128,
+  "lstm_layers_enc" : 8,
 
   "latent_state_size": 256,
   "embed_states": 512,
 
   "att_heads" : 1,
 
-  "lstm_input_gen" : 512,
-  "lstm_units_gen" : 512,
-  "lstm_layers_gen" : 3,
+  "lstm_input_gen" : 128,
+  "lstm_units_gen" : 128,
+  "lstm_layers_gen" : 8,
 
   "num_pretrain_epochs": 200,
   "num_epochs": 0,
@@ -39,9 +39,11 @@
   "allfiles": 1,
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
   "annot_dir": "/home/user/shuwa/home/data/00_Annotations_20180427/",
-  "sentences_file": "/home/user/shuwa/home/data/01_Label/list.csv",
-  "words_file": "/home/user/shuwa/home/data/01_Label/label_sjis.csv",
-
+  "sentences_files": [
+    "/home/user/shuwa/home/vsreeramdass/Corpus/2017_コーパス_記録リスト＿例文_04_Eng.xlsx",
+    "/home/user/shuwa/home/vsreeramdass/Corpus/2018_コーパス_記録リスト＿例文_04_Eng.xlsx"
+  ],
+ 
   "checkpoint_dir": "save/cseqgan/",
   "log_dir": "log/",
   "max_to_keep": 1000,

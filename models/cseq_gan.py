@@ -44,7 +44,9 @@ class CSeqGAN(BaseModel):
 
         def rnn_cell():
             return tf.contrib.rnn.DropoutWrapper(
-            tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(num_units=num_units),
+            tf.nn.rnn_cell.ResidualWrapper(
+                tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(num_units=num_units)
+            ),
             output_keep_prob=keep_prob,
             variational_recurrent=True,
             dtype=tf.float32
@@ -52,17 +54,28 @@ class CSeqGAN(BaseModel):
 
         return tf.contrib.rnn.MultiRNNCell([rnn_cell() for _ in range(num_layers)])
 
+    def prenet(self, inputs):
+
+        with tf.variable_scope("prenet"):
+
+            outputs = tf.layers.dense(inputs, units=256, activation=tf.nn.leaky_relu, name="fc1")
+            outputs = tf.layers.dropout( inputs, training=self.config.train_phase, name="do1")
+            outputs = tf.layers.dense(outputs, units=256, activation=tf.nn.leaky_relu, name="fc2")
+            outputs = tf.layers.dropout( inputs, training=self.config.train_phase, name="do2")
+
+        return outputs
+
     def cfblock(self, inputs):
 
         with tf.variable_scope("cfblock"):
 
             lp0 = [
-                ([5, 5, 1, 2], [1, 1, 1, 1], [1, 1, 1, 1]),
-                ([5, 5, 2, 3], [1, 1, 1, 1], [1, 1, 1, 1]),
+                ([5, 5,  1, 16], [1, 1, 1, 1], [1, 1, 1, 1]),
+                ([5, 5, 16, 16], [1, 1, 1, 1], [1, 1, 1, 1]),
             ]
             lp1 = [
-                ([5, 5, 3, 2], [1, 1, 1, 1], [1, 1, 1, 1]),
-                ([5, 5, 2, 1], [1, 1, 1, 1], [1, 1, 1, 1]),
+                ([5, 5, 16, 16], [1, 1, 1, 1], [1, 1, 1, 1]),
+                ([5, 5, 16,  1], [1, 1, 1, 1], [1, 1, 1, 1]),
             ]
             cnn_unit_disc0 = CSeqGAN.cnn_unit(lp0, "leaky_relu", "SAME", "block0")
             cnn_unit_disc1 = CSeqGAN.cnn_unit(lp1, "leaky_relu", "SAME", "block1")
@@ -107,8 +120,10 @@ class CSeqGAN(BaseModel):
             tf.summary.histogram("embed_inputs", embed_inputs)
             # position embeddings
             embed_inputs = self.position_embeddings(embed_inputs)
+            # prenet
+            prenet_outputs = self.prenet(embed_inputs)
             # cfblock
-            cfblock_outputs = self.cfblock(embed_inputs)
+            cfblock_outputs = self.cfblock(prenet_outputs)
             # rnn
             cells_fw = CSeqGAN.rnn_unit(
                     self.config.lstm_units_enc, 
