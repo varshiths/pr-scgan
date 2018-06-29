@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from .base_model import BaseModel
+from .utils import *
 import pprint
 
 ppr = pprint.PrettyPrinter()
@@ -122,8 +123,6 @@ class CSeqGAN(BaseModel):
 
     def encoder_network(self, sentence, length):
 
-        import pdb; pdb.set_trace()
-
         with tf.variable_scope("encoder"):
             # embeddings
             # todo: replace with matmul for one hot
@@ -176,20 +175,14 @@ class CSeqGAN(BaseModel):
                 embed_states = tf.contrib.layers.batch_norm(embed_states, is_training=self.config.train_phase)
                 embed_states = tf.nn.leaky_relu(embed_states)
 
-            def quart_activation(inp):
+            def custom_quat_actv(inp, nframes, seqw):
 
-                actv = tf.reshape(inp, [-1, 4])
-                actv = tf.contrib.layers.batch_norm(actv, is_training=self.config.train_phase)
-                # make updates to first column of quart
-                actv = tf.concat([
-                        tf.nn.sigmoid(actv[:, :1]),
-                        tf.nn.tanh(actv[:, 1:]),
-                    ], axis=-1)
-                # normalise for rot quarts
-                actv = actv / tf.norm(actv, axis=-1, keepdims=True)
-                # reshape for feed
-                actv = tf.reshape(actv, [batch_size, -1])
+                b, dim = inp.shape.as_list()
+                assert dim == 4 * nframes * seqw
 
+                inp = tf.reshape(inp, [b * nframes * seqw, 4])
+                actv = quat_actv(inp)
+                actv = tf.reshape(actv, [b, nframes * seqw * 4])
                 return actv
 
             # multi head attention mechanism + decode
@@ -202,16 +195,26 @@ class CSeqGAN(BaseModel):
             cell_initial_state = cell.zero_state(batch_size, tf.float32)
 
             # input embedding
-            input_embedding = tf.layers.Dense(self.config.lstm_input_gen, name="input_embedding")
+            embed_ctxt_latent = tf.layers.Dense(self.config.lstm_input_gen, name="embed_ctxt_latent")
 
             def apply_attention_net(_input, head):
-                att0 = tf.layers.dense(_input, self.config.annot_seq_length*10, activation=tf.nn.leaky_relu, name="head%d/0"%head)
-                att1 = tf.layers.dense(att0, 1, name="head%d/1"%head)
+                att0 = tf.layers.dense(
+                    _input, 
+                    self.config.annot_seq_length*10, 
+                    use_bias=False, 
+                    activation=tf.nn.leaky_relu, 
+                    name="head%d/0"%head)
+                att1 = tf.layers.dense(
+                    att0, 
+                    1, 
+                    name="head%d/1"%head)
                 return att1
 
             def get_context_vec(query, scope="attention", reuse=True):
                 with tf.variable_scope(scope, reuse=reuse):
-                    query = tf.concat([tup.h for tup in query], axis=1)
+                    # use only the state of the bottom most rnn for attention # like in tacotron
+                    # query = tf.concat([tup.h for tup in query], axis=1)
+                    query = query[0].h
                     query = tf.expand_dims(query, axis=1)
                     query = tf.tile(query, [1, embed_states.shape[1].value, 1])
                     states_split = tf.split(embed_states, self.config.att_heads, axis=2)
@@ -225,15 +228,9 @@ class CSeqGAN(BaseModel):
                 return ctxt
 
             def initialize():
-                start_shaped = tf.reshape(start, [batch_size, -1])
-                next_inputs = tf.concat([get_context_vec(cell_initial_state, reuse=tf.get_variable_scope().reuse), start_shaped], axis=1)
-                next_inputs = input_embedding(next_inputs)
-                next_inputs = tf.contrib.layers.batch_norm(
-                    next_inputs, 
-                    is_training=self.config.train_phase,
-                    scope="token_batchnorm",
-                    reuse=tf.get_variable_scope().reuse,
-                    )
+                _start = tf.reshape(start, [batch_size, -1])
+                next_inputs = tf.concat([get_context_vec(cell_initial_state, reuse=tf.get_variable_scope().reuse), _start], axis=1)
+                next_inputs = embed_ctxt_latent(next_inputs)
                 next_inputs = tf.nn.leaky_relu(next_inputs)
                 finished = tf.tile([False], [batch_size])
                 return (finished, next_inputs)
@@ -243,43 +240,35 @@ class CSeqGAN(BaseModel):
                 return samples
 
             def next_inputs(time, outputs, state, sample_ids):
-                
+                # consider the frames output and consider only the last for 
+                outputs = tf.reshape(outputs, [batch_size, self.config.nframes_gen, self.config.sequence_width*4])[:, -1, :]
                 next_inputs = tf.concat([get_context_vec(state), outputs], axis=1)
-                next_inputs = input_embedding(next_inputs)
-                next_inputs = tf.contrib.layers.batch_norm(
-                    next_inputs, 
-                    is_training=self.config.train_phase,
-                    scope="token_batchnorm",
-                    reuse=True,
-                    )
+                next_inputs = embed_ctxt_latent(next_inputs)
                 next_inputs = tf.nn.leaky_relu(next_inputs)
                 finished = tf.tile([False], [batch_size])
-
-                # return (finished, next_inputs, next_state)
                 return (finished, next_inputs, state)
 
             helper = tf.contrib.seq2seq.CustomHelper(
                     initialize_fn=initialize,
                     sample_fn=sample,
                     next_inputs_fn=next_inputs,
-                    sample_ids_shape=None,
-                    sample_ids_dtype=None
                 )
             decoder = tf.contrib.seq2seq.BasicDecoder(
                 cell=cell,
                 helper=helper,
                 initial_state=cell_initial_state,
                 output_layer=tf.layers.Dense(
-                        units=self.config.sequence_width * 4,
-                        activation=quart_activation,
+                        units=self.config.nframes_gen*self.config.sequence_width*4,
+                        activation=lambda x: custom_quat_actv(x, self.config.nframes_gen, self.config.sequence_width),
                         name="output_embedding",
                     ),
                 )
+            assert self.config.sequence_length % self.config.nframes_gen == 0
             outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
                 decoder=decoder,
                 output_time_major=False,
                 parallel_iterations=12,
-                maximum_iterations=self.config.sequence_length)
+                maximum_iterations=int(self.config.sequence_length / self.config.nframes_gen))
 
             outputs = outputs.rnn_output
 
@@ -529,24 +518,3 @@ class CSeqGAN(BaseModel):
     def build_validation_metrics(self):
         tf.summary.scalar("cost", self.gen_pretrain_cost)
         pass
-
-def average_gradients(grads):
-
-    average_grads = []
-    for gradv in zip(*grads):
-      # Average over the 'tower' dimension.
-      grad = tf.stack(gradv, axis=0)
-      grad = tf.reduce_mean(grad, axis=0)
-
-      # Keep in mind that the Variables are redundant because they are shared
-      # across towers. So .. we will just return the first tower's pointer to
-      # the Variable.
-      average_grads.append(grad)
-    return average_grads
-
-def make_batches(n, data):
-    try:
-        batched = tf.split(data, n, axis=0)
-    except Exception as e:
-        raise Exception("Batch size not a multiple of ngpus")
-    return batched

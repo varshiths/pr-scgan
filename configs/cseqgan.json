@@ -19,6 +19,8 @@
   "lstm_units_gen" : 128,
   "lstm_layers_gen" : 8,
 
+  "nframes_gen": 8,
+
   "num_pretrain_epochs": 200,
   "num_epochs": 0,
   "disc_ascents": 2,

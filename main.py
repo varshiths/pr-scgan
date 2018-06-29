@@ -57,6 +57,8 @@ def main(argv):
         data = JSLW(config)
     elif FLAGS.dataset == "jsla":
         data = JSLA(config)
+    else:
+        data = BaseData(config)
 
     with tf.Graph().as_default(), tf.device('/cpu:0'):
 

@@ -4,6 +4,11 @@ import numpy as np
 from .utils import *
 from .dirs import *
 
+import pprint
+
+ppr = pprint.PrettyPrinter()
+sprint = lambda x: ppr.pprint(x)
+
 
 def run_with_feed_and_denormalize(sess, model, data, feed, start=None):
 	

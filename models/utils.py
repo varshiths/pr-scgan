@@ -2,6 +2,41 @@ import tensorflow as tf
 import numpy as np
 import math
 
+def quat_actv(inp):
+    '''
+    applies a quaternion activation to a tensor of dims [b, 4]
+    o1, o2, o3, o4 = normalized( sigm(i1), tanh(i2), tanh(i3), tanh(i4) )
+    '''
+    # make updates to first column of quart
+    actv = tf.concat([
+            tf.nn.sigmoid(inp[:, :1]),
+            tf.nn.tanh(inp[:, 1:]),
+        ], axis=-1)
+    # normalise for rot quarts
+    actv = actv / tf.norm(actv, axis=-1, keepdims=True)
+    return actv
+
+def average_gradients(grads):
+
+    average_grads = []
+    for gradv in zip(*grads):
+      # Average over the 'tower' dimension.
+      grad = tf.stack(gradv, axis=0)
+      grad = tf.reduce_mean(grad, axis=0)
+
+      # Keep in mind that the Variables are redundant because they are shared
+      # across towers. So .. we will just return the first tower's pointer to
+      # the Variable.
+      average_grads.append(grad)
+    return average_grads
+
+def make_batches(n, data):
+    try:
+        batched = tf.split(data, n, axis=0)
+    except Exception as e:
+        raise Exception("Batch size not a multiple of %d" % n)
+    return batched
+
 def np_min(arr, gamma=1.0):
     '''
     Implements soft min among a list of tensors x = [x1, x2, ...]
