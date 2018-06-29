@@ -44,6 +44,11 @@ class CSeqGAN(BaseModel):
                 shape=[self.config.batch_size],
                 name="mask",
             )
+        self.learning_rate = tf.placeholder(
+                dtype=tf.float32,
+                shape=[],
+                name="learning_rate",
+            )
 
     def create_init_fetches(self):
         self.start_token = tf.zeros((self.config.batch_size, self.config.sequence_width, 4))
@@ -370,7 +375,7 @@ class CSeqGAN(BaseModel):
     def generator_costs(self, mask, discval_gen, _gen, _target):
 
         # discriminator cost
-        disc_cost = -tf.reduce_sum(discval_gen * mask)
+        disc_cost = -tf.reduce_sum(discval_gen * mask) / tf.reduce_sum(mask)
         # pretrain_cost
         pretrain_cost = self.generator_pretrain_cost(mask, _gen, _target)
         # adversarial loss
@@ -381,11 +386,13 @@ class CSeqGAN(BaseModel):
 
         # smoothness
         differences = tf.square(_gen[:,1:,:,:]-_gen[:,:-1,:,:])
-        smoothness_cost = tf.reduce_sum(tf.maximum(tf.reduce_mean(differences, axis=(1,2,3))-self.config.smoothness_threshold, 0.0))*mask
+        smoothness_cost = tf.reduce_sum(tf.maximum(tf.reduce_mean(differences, axis=(1,2,3))-self.config.smoothness_threshold, 0.0))*mask \
+                            * tf.reduce_sum(mask)
 
         # supervision cost
         # todo: dtw
-        target_cost = tf.reduce_sum(tf.reduce_mean(tf.reduce_sum(tf.square(_gen - _target), axis=(2,3)), axis=1)*mask)
+        target_cost = tf.reduce_sum(tf.reduce_mean(tf.reduce_sum(tf.square(_gen - _target), axis=(2,3)), axis=1)*mask) \
+                        * tf.reduce_sum(mask)
 
         # accumulated cost
         cost = target_cost + smoothness_cost*self.config.smoothness_weight
@@ -478,10 +485,10 @@ class CSeqGAN(BaseModel):
 
             # defining optimizer
             optimizer_gen = tf.train.AdamOptimizer(
-                learning_rate=self.config.learning_rate
+                learning_rate=self.learning_rate
             )
             optimizer_disc = tf.train.AdamOptimizer(
-                learning_rate=self.config.learning_rate/2
+                learning_rate=self.learning_rate/2
             )
 
             with tf.name_scope("var_updates"):

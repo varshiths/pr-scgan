@@ -7,6 +7,8 @@ import pprint
 
 pp = pprint.PrettyPrinter()
 
+def getlr(lr, step):
+    return lr * (0.96**(step/10000.0))
 
 class CSeqGANTrain(GANTrain):
 
@@ -36,6 +38,7 @@ class CSeqGANTrain(GANTrain):
                 self.model.length.name : batch["ann_lengths"],
                 self.model.latent.name : self.sess.run(self.model.latent_distribution_sample),
                 self.model.start.name : self.sess.run(self.model.start_token),
+                self.model.learning_rate.name : getlr(self.config.learning_rate, self.model.gs),
             }
             fetched = self.sess.run(fetches, feed)
             print("%5d Cost: %f" % (i, fetched["cost"]))
