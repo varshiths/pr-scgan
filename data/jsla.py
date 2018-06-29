@@ -66,7 +66,6 @@ class JSLA(BaseData):
 		print("Saving data to npy files...")
 		np.save(self.data_path, arrays)
 
-	@profile(precision=4)
 	def split_into_test_train_eval(self, normalized_data, seed=0):
 		gestures, gesture_means, ann_encodings, lengths, indices_of_words = normalized_data
 
@@ -95,7 +94,6 @@ class JSLA(BaseData):
 		}
 		return split_data
 
-	@profile(precision=4)
 	def normalise(self, data):
 
 		gestures, sentences, indices_of_words = data
@@ -280,11 +278,13 @@ class JSLA(BaseData):
 
 			self.batches_gestures = self.gestures[nsamples]
 			self.batches_annotations = self.annotations[nsamples]
+			self.batches_ann_lengths = self.ann_lengths[nsamples]
 			self.iter_set = nsamples.shape[0]-1
 
 		batch = {
 			"gestures": self.batches_gestures[self.iter_set],
-			"annotations": self.batches_annotations[self.iter_set]
+			"annotations": self.batches_annotations[self.iter_set],
+			"ann_lengths": self.batches_ann_lengths[self.iter_set],
 		}
 		self.iter_set -= 1
 		return batch, self.iter_set == -1 # indicator to end
@@ -296,7 +296,8 @@ class JSLA(BaseData):
 
 		batch = {
 			"gestures": self.gestures[choices],
-			"annotations": self.annotations[choices]
+			"annotations": self.annotations[choices],
+			"annotations": self.ann_lengths[choices],
 		}
 		return batch
 

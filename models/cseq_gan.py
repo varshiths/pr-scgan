@@ -381,7 +381,7 @@ class CSeqGAN(BaseModel):
 
         # smoothness
         differences = tf.square(_gen[:,1:,:,:]-_gen[:,:-1,:,:])
-        smoothness_cost = tf.maximum(tf.reduce_sum(tf.reduce_mean(differences, axis=(1,2,3))*mask)-self.config.smoothness_threshold, 0.0)
+        smoothness_cost = tf.reduce_sum(tf.maximum(tf.reduce_mean(differences, axis=(1,2,3))-self.config.smoothness_threshold, 0.0))*mask
 
         # supervision cost
         # todo: dtw

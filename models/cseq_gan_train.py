@@ -33,6 +33,7 @@ class CSeqGANTrain(GANTrain):
             feed = {
                 self.model.gesture.name : batch["gestures"],
                 self.model.sentence.name : batch["annotations"],
+                self.model.length.name : batch["ann_lengths"],
                 self.model.latent.name : self.sess.run(self.model.latent_distribution_sample),
                 self.model.start.name : self.sess.run(self.model.start_token),
             }
@@ -40,7 +41,7 @@ class CSeqGANTrain(GANTrain):
             print("%5d Cost: %f" % (i, fetched["cost"]))
             # print("%5d Cost: %f Norm: %f" % (i, fetched["cost"], fetched["norm"]))
             if self.config.log and self.model.summary is not None:
-                self.model.writer.add_summary(fetched["summary"], self.model.gs + float(i)/10)
+                self.model.writer.add_summary(fetched["summary"], self.model.gs)
 
             self.model.igs(self.sess)
             batch, is_end = self.data.next_batch()
