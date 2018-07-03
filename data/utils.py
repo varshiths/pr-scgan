@@ -5,27 +5,43 @@ from pyquaternion import Quaternion
 import multiprocessing
 import warnings
 
+from scipy.stats import norm as nd
+
 
 def num_elements(shape):
-    num = 1
-    for i in list(shape):
-        num *= i
-    return num
-
-def range_len(rang):
-    return rang[1]-rang[0]+1
+    return np.prod(shape)
 
 def convert_to_one_hot(data, rang):
 
     data_shape = data.shape
     data_oned = data.reshape(num_elements(data_shape))
 
-    enc_data_shape = ( num_elements(data_shape), range_len(rang) )
-    enc_data = np.zeros(enc_data_shape)
+    enc_data_shape = ( num_elements(data_shape), rang )
+    enc_data = np.zeros(enc_data_shape, dtype=np.float32)
     enc_data[np.arange(num_elements(data_shape)), data_oned] = 1
 
     enc_data_shape = list(data_shape)
-    enc_data_shape.append(range_len(rang))
+    enc_data_shape.append(rang)
+    enc_data = enc_data.reshape(enc_data_shape)
+
+    return enc_data
+
+def convert_to_soft_one_hot(data, rang, window):
+
+    data_shape = data.shape
+    data_oned = data.reshape(num_elements(data_shape))
+
+    enc_data_shape = ( num_elements(data_shape), rang )
+    enc_data = np.zeros(enc_data_shape, dtype=np.float32)
+
+    branch = int(window/2)
+    pdf = nd.pdf(np.arange(-branch, branch), 0.0, 0.6)
+    pdf = pdf / np.sum(pdf)
+
+    for offset in range(-branch, branch):
+        enc_data[np.arange(num_elements(data_shape)), np.mod(data_oned+offset, rang)] = pdf[branch+offset]
+
+    enc_data_shape = data_shape + (rang,)
     enc_data = enc_data.reshape(enc_data_shape)
 
     return enc_data

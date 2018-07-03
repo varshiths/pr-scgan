@@ -13,7 +13,13 @@ class CSeqGAN(BaseModel):
         # sequence
         self.gesture = tf.placeholder(
                 dtype=tf.float32,
-                shape=[self.config.batch_size, self.config.sequence_length, self.config.sequence_width, 4],
+                shape=[
+                self.config.batch_size, 
+                self.config.sequence_length, 
+                self.config.sequence_width, 
+                self.config.or_angles,
+                self.config.ang_classes,
+                ],
                 name="gesture",
             )
 
@@ -36,7 +42,7 @@ class CSeqGAN(BaseModel):
 
         self.start = tf.placeholder(
                 dtype=tf.float32,
-                shape=[self.config.batch_size, self.config.sequence_width, 4],
+                shape=[self.config.batch_size, self.config.sequence_width, self.config.or_angles, self.config.ang_classes],
                 name="start",
             )
         self.mask = tf.placeholder_with_default(
@@ -51,7 +57,7 @@ class CSeqGAN(BaseModel):
             )
 
     def create_init_fetches(self):
-        self.start_token = tf.zeros((self.config.batch_size, self.config.sequence_width, 4))
+        self.start_token = tf.zeros((self.config.batch_size, self.config.sequence_width, self.config.or_angles, self.config.ang_classes))
         self.latent_distribution_sample = tf.random_normal(
             shape=(self.config.batch_size, self.config.latent_state_size),
             mean=0.0,
@@ -180,14 +186,14 @@ class CSeqGAN(BaseModel):
                 embed_states = tf.contrib.layers.batch_norm(embed_states, is_training=self.config.train_phase)
                 embed_states = tf.nn.leaky_relu(embed_states)
 
-            def custom_quat_actv(inp, nframes, seqw):
+            def custom_actv(inp, nframes, seqw, nangs, nclass):
 
                 b, dim = inp.shape.as_list()
-                assert dim == 4 * nframes * seqw
+                assert dim == nframes * seqw * nangs * nclass
 
-                inp = tf.reshape(inp, [b * nframes * seqw, 4])
-                actv = quat_actv(inp)
-                actv = tf.reshape(actv, [b, nframes * seqw * 4])
+                inp = tf.reshape(inp, [b * nframes * seqw * nangs, nclass])
+                actv = tf.nn.softmax(inp, axis=-1)
+                actv = tf.reshape(actv, [b, nframes * seqw * nangs * nclass])
                 return actv
 
             # multi head attention mechanism + decode
@@ -232,9 +238,26 @@ class CSeqGAN(BaseModel):
 
                 return ctxt
 
+            def out_prenet(out, scope="out_prenet", reuse=True):
+                '''
+                input shape = b x seqw x nangs x nclass
+                output shape = b x dim
+                '''
+                b = out.shape[0].value
+                with tf.variable_scope(scope, reuse=reuse):
+                    # sample and one hot encode
+                    out = tf.argmax(out, axis=-1, output_type=tf.int32)
+                    table = tf.get_variable("embedding", [self.config.ang_classes, 16])
+                    out = tf.nn.embedding_lookup(table, out)
+                    out = tf.reshape(out, [b, -1])
+                    out = tf.layers.dense(out, 256, name="fc0")
+                    return out
+
             def initialize():
-                _start = tf.reshape(start, [batch_size, -1])
-                next_inputs = tf.concat([get_context_vec(cell_initial_state, reuse=tf.get_variable_scope().reuse), _start], axis=1)
+                # apply prenet and get context vec 
+                _start = out_prenet(start, reuse=tf.get_variable_scope().reuse)
+                _ctxt_vec = get_context_vec(cell_initial_state, reuse=tf.get_variable_scope().reuse)
+                next_inputs = tf.concat([_ctxt_vec, _start], axis=1)
                 next_inputs = embed_ctxt_latent(next_inputs)
                 next_inputs = tf.nn.leaky_relu(next_inputs)
                 finished = tf.tile([False], [batch_size])
@@ -246,8 +269,11 @@ class CSeqGAN(BaseModel):
 
             def next_inputs(time, outputs, state, sample_ids):
                 # consider the frames output and consider only the last for 
-                outputs = tf.reshape(outputs, [batch_size, self.config.nframes_gen, self.config.sequence_width*4])[:, -1, :]
-                next_inputs = tf.concat([get_context_vec(state), outputs], axis=1)
+                outputs = tf.reshape(outputs, [batch_size, self.config.nframes_gen, self.config.sequence_width, self.config.or_angles, self.config.ang_classes])[:, -1, ...]
+                # apply prenet and get context vec 
+                _outputs = out_prenet(outputs)
+                _ctxt_vec = get_context_vec(state)
+                next_inputs = tf.concat([_ctxt_vec, _outputs], axis=1)
                 next_inputs = embed_ctxt_latent(next_inputs)
                 next_inputs = tf.nn.leaky_relu(next_inputs)
                 finished = tf.tile([False], [batch_size])
@@ -263,8 +289,8 @@ class CSeqGAN(BaseModel):
                 helper=helper,
                 initial_state=cell_initial_state,
                 output_layer=tf.layers.Dense(
-                        units=self.config.nframes_gen*self.config.sequence_width*4,
-                        activation=lambda x: custom_quat_actv(x, self.config.nframes_gen, self.config.sequence_width),
+                        units=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes,
+                        activation=lambda x: custom_actv(x, self.config.nframes_gen, self.config.sequence_width, self.config.or_angles, self.config.ang_classes),
                         name="output_embedding",
                     ),
                 )
@@ -277,7 +303,7 @@ class CSeqGAN(BaseModel):
 
             outputs = outputs.rnn_output
 
-            outputs = tf.reshape(outputs, [batch_size, self.config.sequence_length, self.config.sequence_width, 4])
+            outputs = tf.reshape(outputs, [batch_size, self.config.sequence_length, self.config.sequence_width, self.config.or_angles, self.config.ang_classes])
 
         return outputs
 

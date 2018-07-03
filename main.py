@@ -57,6 +57,8 @@ def main(argv):
         data = JSLW(config)
     elif FLAGS.dataset == "jsla":
         data = JSLA(config)
+    elif FLAGS.dataset == "jslad":
+        data = JSLAD(config)
     else:
         data = BaseData(config)
 

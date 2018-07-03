@@ -51,6 +51,9 @@ def run_quart_model_and_output_csv(sess, model, data, config, dirname):
 def run_data_norm_and_denorm(sess, model, data, config):
 	
 	jsld = data.load_jsl_from_folder()
+
+	import pdb; pdb.set_trace()
+
 	jsld = np.reshape(jsld, [-1, 64, 107, 6])
 	fno = 14
 	jsld[0,:,:fno,3:] = 0
