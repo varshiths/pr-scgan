@@ -297,7 +297,7 @@ class JSLA(BaseData):
 		batch = {
 			"gestures": self.gestures[choices],
 			"annotations": self.annotations[choices],
-			"annotations": self.ann_lengths[choices],
+			"ann_lengths": self.ann_lengths[choices],
 		}
 		return batch
 
