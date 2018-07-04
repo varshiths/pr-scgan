@@ -3,7 +3,7 @@ time python3 main.py \
 	--seed 0 \
 	--dataset jslad \
 	--config configs/cseqgan_dz.json \
-	# --architecture cseqgan \
+	--architecture cseqgan \
 	# --mode train \
 	# --model dvyi0 \
 	# --save dvyi0 \

@@ -12,13 +12,12 @@ class CSeqGAN(BaseModel):
     def create_placeholders(self):
         # sequence
         self.gesture = tf.placeholder(
-                dtype=tf.float32,
+                dtype=tf.int32,
                 shape=[
-                self.config.batch_size, 
-                self.config.sequence_length, 
-                self.config.sequence_width, 
-                self.config.or_angles,
-                self.config.ang_classes,
+                    self.config.batch_size, 
+                    self.config.sequence_length, 
+                    self.config.sequence_width, 
+                    self.config.or_angles,
                 ],
                 name="gesture",
             )
@@ -57,7 +56,7 @@ class CSeqGAN(BaseModel):
             )
 
     def create_init_fetches(self):
-        self.start_token = tf.zeros((self.config.batch_size, self.config.sequence_width, self.config.or_angles, self.config.ang_classes))
+        self.start_token = tf.ones((self.config.batch_size, self.config.sequence_width, self.config.or_angles, self.config.ang_classes))
         self.latent_distribution_sample = tf.random_normal(
             shape=(self.config.batch_size, self.config.latent_state_size),
             mean=0.0,
@@ -245,8 +244,9 @@ class CSeqGAN(BaseModel):
                 '''
                 b = out.shape[0].value
                 with tf.variable_scope(scope, reuse=reuse):
-                    # sample and one hot encode
-                    out = tf.argmax(out, axis=-1, output_type=tf.int32)
+                    # construct prob distr from logits
+                    # consider max from distr and embed
+                    out = self.softmax_and_class_sampler(out, float_cast=False)
                     table = tf.get_variable("embedding", [self.config.ang_classes, 16])
                     out = tf.nn.embedding_lookup(table, out)
                     out = tf.reshape(out, [b, -1])
@@ -291,7 +291,7 @@ class CSeqGAN(BaseModel):
                 initial_state=cell_initial_state,
                 output_layer=tf.layers.Dense(
                         units=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes,
-                        activation=lambda x: custom_actv(x, self.config.nframes_gen, self.config.sequence_width, self.config.or_angles, self.config.ang_classes),
+                        # activation=lambda x: custom_actv(x, self.config.nframes_gen, self.config.sequence_width, self.config.or_angles, self.config.ang_classes),
                         name="output_embedding",
                     ),
                 )
@@ -304,6 +304,8 @@ class CSeqGAN(BaseModel):
 
             outputs = outputs.rnn_output
             outputs = tf.reshape(outputs, [batch_size, self.config.sequence_length, self.config.sequence_width, self.config.or_angles, self.config.ang_classes])
+            outputs = tf.nn.softmax(outputs, axis=-1)
+            # the outputs here are probabilities! not indices of classes!
 
         return outputs
 
@@ -317,6 +319,12 @@ class CSeqGAN(BaseModel):
         if define:
             self.gen_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator")
         return outputs
+
+    def softmax_and_class_sampler(self, inp, float_cast=True):
+        out = tf.argmax(tf.nn.softmax(inp, axis=-1), axis=-1, output_type=tf.int32)
+        if float_cast:
+            out = tf.cast(out, dtype=tf.float32)
+        return out
 
     def cnn_unit(params, activation=None, padding="SAME", scope=""):
 
@@ -347,6 +355,7 @@ class CSeqGAN(BaseModel):
         batch_size = seq.shape[0].value
 
         with tf.variable_scope("discriminator", reuse=(not define)):
+            seq = tf.cast(seq, dtype=tf.float32)
             seq = tf.reshape(seq, [batch_size, -1])
             out = tf.layers.dense(seq, 1, name="ff")
 
@@ -419,20 +428,42 @@ class CSeqGAN(BaseModel):
 
     def generator_pretrain_cost(self, mask, _gen, _target):
 
-        # smoothness
-        _gen_angles = tf.cast(tf.argmax(_gen, axis=-1, output_type=tf.int32), dtype=tf.float32)
+        # get angles after softmax and class sampler
+        _gen_angles = self.softmax_and_class_sampler(_gen)
         # angle sensitive distance measure - (sin(theta/2))**2 - distance between the points on the unit circle
         differences = tf.square(tf.sin((1./2.)*(2*np.pi*(self.config.dz_level)/360)*(_gen_angles[:,1:,:,:]-_gen_angles[:,:-1,:,:])))
         smoothness_cost = tf.reduce_sum(tf.reduce_mean(tf.maximum(differences-self.config.smoothness_threshold, 0.0), axis=(1,2,3)))*mask \
                             / tf.reduce_sum(mask)
 
+        def one_hot_and_smoothen_label(inp, smoothen=False):
+            inp_hot = tf.one_hot(inp, depth=self.config.ang_classes, dtype=tf.float32)
+            if smoothen:
+                # manually specified filter to smoothen out label
+                _filter = tf.constant([[[1.]],[[4.]],[[16.]],[[4.]],[[1.]]], dtype=tf.float32, shape=[5,1,1], verify_shape=True)
+                # reshape for conv
+                bs, ln, nf, na, nc = inp_hot.shape.as_list()
+                out = tf.reshape(inp_hot, [bs * ln * nf * na, nc, 1])
+                out = tf.nn.conv1d(out, _filter, stride=1, padding="SAME") / tf.reduce_sum(_filter)
+                out = tf.reshape(out, [bs, ln, nf, na, nc])
+            return out
+
         # supervision cost
         # todo: dtw
-        target_cost = tf.reduce_sum(
-            tf.reduce_mean(
-                    tf.reduce_sum(_target*tf.log(_gen), axis=(4))
-                , axis=(1,2,3))
-            *mask) / tf.reduce_sum(mask)
+        # one hot encode
+        _target = one_hot_and_smoothen_label(_target, smoothen=True)
+
+        # reshape as fn takes batch size x num classes as input
+        # reshape the cross entropies into the org seq shape
+        data_shape = _gen.shape.as_list()
+        _gen = tf.reshape(_gen, [-1, self.config.ang_classes])
+        _target = tf.reshape(_target, [-1, self.config.ang_classes])
+        cecost = tf.nn.softmax_cross_entropy_with_logits_v2(labels=_target, logits=_gen)
+        cecost = tf.reshape(cecost, data_shape[:-1])
+
+        # mean across time, features, and angles
+        icost = tf.reduce_mean(cecost, axis=(1,2,3))
+        # apply mask
+        target_cost = tf.reduce_sum(icost*mask) / tf.reduce_sum(mask)
 
         # accumulated cost
         cost = target_cost + smoothness_cost*self.config.smoothness_weight
@@ -441,11 +472,16 @@ class CSeqGAN(BaseModel):
     def discriminator_cost(self, mask, discval_gen, discval_target, _gen, _target, define=False):
 
         # check after developing discriminator for discrete representation
+        # after deciding on discriminator architecture
+
+        # in the discrete form sampled (i.e., as the angles themselves)
+        _gen = tf.cast(_gen, dtype=tf.float32)
+        _target = tf.cast(_target, dtype=tf.float32)
 
         batch_size = _target.shape[0].value
         with tf.variable_scope("cost", reuse=(not define)):
-            ep = tf.random_uniform(shape=[batch_size, 1, 1, 1, 1], minval=0, maxval=1)
-            x = tf.get_variable("temp", [batch_size, self.config.sequence_length, self.config.sequence_width, self.config.or_angles, self.config.ang_classes], trainable=False)
+            ep = tf.random_uniform(shape=[batch_size, 1, 1, 1], minval=0, maxval=1)
+            x = tf.get_variable("temp", [batch_size, self.config.sequence_length, self.config.sequence_width, self.config.or_angles], trainable=False)
             x = tf.assign(x, _target*ep + _gen*(1-ep))
 
         disc_x = self.discriminator_network(x)
@@ -467,12 +503,12 @@ class CSeqGAN(BaseModel):
 
             with tf.name_scope("split_batches"):
                 # split feed into batches for ngpus
-                gesture_a = make_batches(self.config.ngpus, self.gesture)
-                sentence_a = make_batches(self.config.ngpus, self.sentence)
-                length_a = make_batches(self.config.ngpus, self.length)
-                latent_a = make_batches(self.config.ngpus, self.latent)
-                start_a = make_batches(self.config.ngpus, self.start)
-                mask_a = make_batches(self.config.ngpus, self.mask)
+                gesture_b = make_batches(self.config.ngpus, self.gesture)
+                sentence_b = make_batches(self.config.ngpus, self.sentence)
+                length_b = make_batches(self.config.ngpus, self.length)
+                latent_b = make_batches(self.config.ngpus, self.latent)
+                start_b = make_batches(self.config.ngpus, self.start)
+                mask_b = make_batches(self.config.ngpus, self.mask)
             
             out_gen_list = []
             gen_cost_list = []
@@ -485,26 +521,27 @@ class CSeqGAN(BaseModel):
 
             for i in range(self.config.ngpus):
 
-                gesture     = gesture_a[i]
-                sentence    = sentence_a[i]
-                length      = length_a[i]
-                latent      = latent_a[i]
-                start       = start_a[i]
-                mask        = mask_a[i]
+                gesture     = gesture_b[i]
+                sentence    = sentence_b[i]
+                length      = length_b[i]
+                latent      = latent_b[i]
+                start       = start_b[i]
+                mask        = mask_b[i]
 
                 with tf.device('/gpu:%d' % i), tf.name_scope("tower%d"%i):
                     # import pdb; pdb.set_trace()
                     out_gen = self.generator_network(sentence, length, latent, start, i==0)
+                    out_gen_s = self.softmax_and_class_sampler(out_gen, float_cast=False)
 
                     with tf.name_scope("gen_disc"):
-                        disc_out_gen = self.discriminator_network(out_gen, i==0)
+                        disc_out_gen = self.discriminator_network(out_gen_s, i==0)
                     with tf.name_scope("targ_disc"):
                         disc_out_target = self.discriminator_network(gesture)
 
-                    with tf.name_scope("gen_costs"):
+                    with tf.name_scope("gen_cost"):
                         gen_pretrain_cost, gen_cost = self.generator_costs(mask, disc_out_gen, out_gen, gesture)
-                    with tf.name_scope("disc_costs"):
-                        disc_cost = self.discriminator_cost(mask, disc_out_gen, disc_out_target, out_gen, gesture, i==0)
+                    with tf.name_scope("disc_cost"):
+                        disc_cost = self.discriminator_cost(mask, disc_out_gen, disc_out_target, out_gen_s, gesture, i==0)
 
                     with tf.variable_scope("grad_comp"):
                         gen_pretrain_grads = self.compute_and_clip_gradients(gen_pretrain_cost, self.gen_vars)
@@ -538,21 +575,18 @@ class CSeqGAN(BaseModel):
                 self.gen_grad_step = optimizer_gen.apply_gradients(zip( gen_grads, self.gen_vars ))
                 self.disc_grad_step = optimizer_disc.apply_gradients(zip( disc_grads, self.disc_vars ))
 
-            with tf.name_scope("outputs"):
+            # accumulate costs according to masks and stack outputs
+            with tf.name_scope("outputs_and_cost_means"):
                 # setting other informative fetches
-                self.out_gen = tf.stack(out_gen, axis=0)
-                self.gen_pretrain_cost = tf.reduce_mean(tf.convert_to_tensor(gen_pretrain_cost))
-                self.gen_cost = tf.reduce_mean(tf.convert_to_tensor(gen_cost))
-                self.disc_cost = tf.reduce_mean(tf.convert_to_tensor(disc_cost))
-
-                self.gen_pretrain_grads = tf.reduce_mean([tf.norm(x) for x in gen_pretrain_grads])
-                self.gen_grads = tf.reduce_mean([tf.norm(x) for x in gen_grads])
-                self.disc_grads = tf.reduce_mean([tf.norm(x) for x in disc_grads])
+                self.out_gen = tf.stack(out_gen_list, axis=0)
+                self.gen_pretrain_cost = average_costs(gen_pretrain_cost_list, mask_b)
+                self.gen_cost = average_costs(gen_cost_list, mask_b)
+                self.disc_cost = average_costs(disc_cost_list, mask_b)
 
             ###~~~###
             for var, grad in zip(self.gen_vars, gen_pretrain_grads):
                 tf.summary.histogram(var.name, var)
-                tf.summary.scalar(var.name + "_mean", tf.reduce_mean(grad))
+                tf.summary.scalar(var.name + "_grad_mean", tf.reduce_mean(grad))
             # tf.summary.scalar("gen_pretrain_norms", self.gen_pretrain_grads)
 
             self.build_validation_metrics()

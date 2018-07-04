@@ -30,6 +30,16 @@ def average_gradients(grads):
       average_grads.append(grad)
     return average_grads
 
+def average_costs(costs, masks):
+    '''
+    converts split_batch wise costs into 
+    total batch cost weighing them according to the masks' sizes
+    '''
+    weights = [ tf.reduce_sum(x) for x in masks ]
+    costs = [ cost*weight for cost, weight in zip(costs, weights) ]
+    cost = tf.reduce_sum(tf.convert_to_tensor(costs)) / tf.reduce_sum(weights)
+    return cost
+
 def make_batches(n, data):
     try:
         batched = tf.split(data, n, axis=0)
