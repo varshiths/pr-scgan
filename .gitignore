@@ -115,4 +115,6 @@ scripts/
 *.bvh
 output/
 
+# data and other temp files
 *.temp
+*.dat

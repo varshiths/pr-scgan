@@ -2,7 +2,7 @@
   "sequence_length": 1024,
   "sequence_width": 107,
   "or_angles": 3,
-  "ang_classes": 180,
+  "ang_classes": 120,
 
   "vocab_size": 264,
   "annot_seq_length": 32,
@@ -28,7 +28,7 @@
   "disc_ascents": 2,
   "gen_descents": 2,
 
-  "batch_size": 16,
+  "batch_size": 2,
 
   "latent_std": 0.0,
   "init_std": 0.002,
@@ -41,8 +41,9 @@
   "grad_penalty_weight": 1.0,
   "smoothness_weight": 5e3,
 
-  "dz_level": 2,
+  "dz_level": 3,
   "soft_label_window": 10,
+  "soft_label_dilution": 0.6,
 
   "allfiles": -1,
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",

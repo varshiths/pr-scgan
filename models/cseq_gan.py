@@ -268,8 +268,9 @@ class CSeqGAN(BaseModel):
                 return samples
 
             def next_inputs(time, outputs, state, sample_ids):
+                outputs = tf.reshape(outputs, [batch_size, self.config.nframes_gen, self.config.sequence_width, self.config.or_angles, self.config.ang_classes])
                 # consider the frames output and consider only the last for 
-                outputs = tf.reshape(outputs, [batch_size, self.config.nframes_gen, self.config.sequence_width, self.config.or_angles, self.config.ang_classes])[:, -1, ...]
+                outputs = outputs[:, -1, ...]
                 # apply prenet and get context vec 
                 _outputs = out_prenet(outputs)
                 _ctxt_vec = get_context_vec(state)
@@ -302,7 +303,6 @@ class CSeqGAN(BaseModel):
                 maximum_iterations=int(self.config.sequence_length / self.config.nframes_gen))
 
             outputs = outputs.rnn_output
-
             outputs = tf.reshape(outputs, [batch_size, self.config.sequence_length, self.config.sequence_width, self.config.or_angles, self.config.ang_classes])
 
         return outputs
@@ -342,11 +342,19 @@ class CSeqGAN(BaseModel):
 
     def discriminator_network(self, seq, define=False):
 
+        # todo: discrimitaor for discrete generator!
+        # currently using a dummy fully connected discriminator which always outputs a one
+        batch_size = seq.shape[0].value
+
+        with tf.variable_scope("discriminator", reuse=(not define)):
+            seq = tf.reshape(seq, [batch_size, -1])
+            out = tf.layers.dense(seq, 1, name="ff")
+
+        '''
+        # discriminator for quat generator
         seq = tf.reshape(seq, [-1, self.config.sequence_length, self.config.sequence_width * 4])
 
         with tf.variable_scope("discriminator", reuse=(not define)):
-
-            batch_size = seq.shape[0].value
 
             # Convolution with pooling
             # Features are not spacially correlated
@@ -393,6 +401,7 @@ class CSeqGAN(BaseModel):
                 out = tf.layers.dense(out, 32, activation=tf.nn.leaky_relu)
                 out = tf.layers.dense(out, 1)
                 out = tf.reshape(out, [-1])
+        '''
 
         if define:
             self.disc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
@@ -411,14 +420,19 @@ class CSeqGAN(BaseModel):
     def generator_pretrain_cost(self, mask, _gen, _target):
 
         # smoothness
-        differences = tf.square(_gen[:,1:,:,:]-_gen[:,:-1,:,:])
-        smoothness_cost = tf.reduce_sum(tf.maximum(tf.reduce_mean(differences, axis=(1,2,3))-self.config.smoothness_threshold, 0.0))*mask \
-                            * tf.reduce_sum(mask)
+        _gen_angles = tf.cast(tf.argmax(_gen, axis=-1, output_type=tf.int32), dtype=tf.float32)
+        # angle sensitive distance measure - (sin(theta/2))**2 - distance between the points on the unit circle
+        differences = tf.square(tf.sin((1./2.)*(2*np.pi*(self.config.dz_level)/360)*(_gen_angles[:,1:,:,:]-_gen_angles[:,:-1,:,:])))
+        smoothness_cost = tf.reduce_sum(tf.reduce_mean(tf.maximum(differences-self.config.smoothness_threshold, 0.0), axis=(1,2,3)))*mask \
+                            / tf.reduce_sum(mask)
 
         # supervision cost
         # todo: dtw
-        target_cost = tf.reduce_sum(tf.reduce_mean(tf.reduce_sum(tf.square(_gen - _target), axis=(2,3)), axis=1)*mask) \
-                        * tf.reduce_sum(mask)
+        target_cost = tf.reduce_sum(
+            tf.reduce_mean(
+                    tf.reduce_sum(_target*tf.log(_gen), axis=(4))
+                , axis=(1,2,3))
+            *mask) / tf.reduce_sum(mask)
 
         # accumulated cost
         cost = target_cost + smoothness_cost*self.config.smoothness_weight
@@ -426,11 +440,12 @@ class CSeqGAN(BaseModel):
 
     def discriminator_cost(self, mask, discval_gen, discval_target, _gen, _target, define=False):
 
-        batch_size = _target.shape[0].value
+        # check after developing discriminator for discrete representation
 
+        batch_size = _target.shape[0].value
         with tf.variable_scope("cost", reuse=(not define)):
-            ep = tf.random_uniform(shape=[batch_size, 1, 1, 1], minval=0, maxval=1)
-            x = tf.get_variable("temp", [batch_size, self.config.sequence_length, self.config.sequence_width, 4], trainable=False)
+            ep = tf.random_uniform(shape=[batch_size, 1, 1, 1, 1], minval=0, maxval=1)
+            x = tf.get_variable("temp", [batch_size, self.config.sequence_length, self.config.sequence_width, self.config.or_angles, self.config.ang_classes], trainable=False)
             x = tf.assign(x, _target*ep + _gen*(1-ep))
 
         disc_x = self.discriminator_network(x)

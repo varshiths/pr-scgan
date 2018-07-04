@@ -52,8 +52,8 @@ class JSLAD(JSLA):
 		gestures, sentences, indices_of_words = data
 
 		print("Transforming and selecting data...")
-		gestures = [ general_pad(x, self.config.sequence_length) for x in gestures ]
-		gestures = np.stack(gestures, axis=0)
+		_gestures = [ general_pad(x, self.config.sequence_length) for x in gestures ]
+		gestures = np.stack(_gestures, axis=0); del _gestures
 
 		# saving motion data for later
 		_shape = gestures.shape
@@ -70,11 +70,26 @@ class JSLAD(JSLA):
 		gestures = np.around((gestures+180.0)/self.config.dz_level).astype(int)
 		nclasses = int(360/self.config.dz_level)
 
+		# all at once; causes OOM
 		gestures = convert_to_soft_one_hot(
 				gestures, 
 				nclasses, 
 				self.config.soft_label_window,
+				self.config.soft_label_dilution,
 			)
+
+		# # split to avoid OOM
+		# gestures_list = np.array_split(gestures, 16, axis=0); del gestures
+		# fin_list = []
+		# for gestures in gestures_list:
+		# 	gestures1 = convert_to_soft_one_hot(
+		# 			gestures, 
+		# 			nclasses, 
+		# 			self.config.soft_label_window,
+		# 			self.config.soft_label_dilution,
+		# 		)			
+		# 	fin_list.append(gestures1)
+		# gestures = np.concatenate(fin_list, axis=0); del fin_list
 
 		# encode words into one hot encodings
 		ann_encodings, lengths = self.process_input(sentences, indices_of_words)

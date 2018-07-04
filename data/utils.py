@@ -5,6 +5,7 @@ from pyquaternion import Quaternion
 import multiprocessing
 import warnings
 
+from memory_profiler import profile
 from scipy.stats import norm as nd
 
 
@@ -26,20 +27,27 @@ def convert_to_one_hot(data, rang):
 
     return enc_data
 
-def convert_to_soft_one_hot(data, rang, window):
+def convert_to_soft_one_hot(data, rang, window, std=0.6):
 
     data_shape = data.shape
     data_oned = data.reshape(num_elements(data_shape))
 
     enc_data_shape = ( num_elements(data_shape), rang )
-    enc_data = np.zeros(enc_data_shape, dtype=np.float32)
+    # enc_data = np.zeros(enc_data_shape, dtype=np.float32)
+    # initialised with zeros by default
+    enc_data = np.memmap('enc_data.dat', dtype=np.float32,
+                  mode='w+', shape=enc_data_shape)
 
     branch = int(window/2)
-    pdf = nd.pdf(np.arange(-branch, branch), 0.0, 0.6)
+    pdf = nd.pdf(np.arange(-branch, branch), 0.0, std)
     pdf = pdf / np.sum(pdf)
 
+    import time
     for offset in range(-branch, branch):
+        start = time.time()
         enc_data[np.arange(num_elements(data_shape)), np.mod(data_oned+offset, rang)] = pdf[branch+offset]
+        end = time.time()
+        print("offset %d in %d to %d :" % (offset, -branch, branch), end-start)
 
     enc_data_shape = data_shape + (rang,)
     enc_data = enc_data.reshape(enc_data_shape)

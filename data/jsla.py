@@ -178,7 +178,7 @@ class JSLA(BaseData):
 		# with codecs.open(self.config.sentences_file, "r", encoding="shiftjis") as f:
 		# 	data = csv.reader(f, delimiter=",")
 		# 	files = [row[0] for row in data]
-		files = ofiles[:4] if self.config.allfiles == -1 else ofiles
+		files = ofiles[:20] if self.config.allfiles == -1 else ofiles
 		nfiles = len(files)
 
 		print("Process gestures")
