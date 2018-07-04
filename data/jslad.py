@@ -68,15 +68,15 @@ class JSLAD(JSLA):
 		# gmmap[:] = gestures[:]
 
 		gestures = np.around((gestures+180.0)/self.config.dz_level).astype(int)
-		nclasses = int(360/self.config.dz_level)
+		# nclasses = int(360/self.config.dz_level)
 
 		# all at once; causes OOM
-		gestures = convert_to_soft_one_hot(
-				gestures, 
-				nclasses, 
-				self.config.soft_label_window,
-				self.config.soft_label_dilution,
-			)
+		# gestures = convert_to_soft_one_hot(
+		# 		gestures, 
+		# 		nclasses, 
+		# 		self.config.soft_label_window,
+		# 		self.config.soft_label_dilution,
+		# 	)
 
 		# # split to avoid OOM
 		# gestures_list = np.array_split(gestures, 16, axis=0); del gestures

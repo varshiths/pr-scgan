@@ -8,9 +8,9 @@
   "annot_seq_length": 32,
   "annot_embedding": 128,
 
-  "lstm_input_enc" : 256,
-  "lstm_units_enc" : 256,
-  "lstm_layers_enc" : 8,
+  "lstm_input_enc" : 128,
+  "lstm_units_enc" : 128,
+  "lstm_layers_enc" : 2,
 
   "latent_state_size": 256,
   "embed_states": 512,
@@ -19,11 +19,11 @@
 
   "lstm_input_gen" : 256,
   "lstm_units_gen" : 256,
-  "lstm_layers_gen" : 8,
+  "lstm_layers_gen" : 4,
 
   "nframes_gen": 8,
 
-  "num_pretrain_epochs": 200,
+  "num_pretrain_epochs": 1000000,
   "num_epochs": 0,
   "disc_ascents": 2,
   "gen_descents": 2,
@@ -45,7 +45,7 @@
   "soft_label_window": 10,
   "soft_label_dilution": 0.6,
 
-  "allfiles": -1,
+  "allfiles": 1,
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
   "annot_dir": "/home/user/shuwa/home/data/00_Annotations_20180427/",
   "sentences_files": [
