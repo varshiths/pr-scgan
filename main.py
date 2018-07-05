@@ -148,7 +148,7 @@ def main(argv):
                 elif FLAGS.test_index == 5:
                     run_data_norm_and_denorm(session, model, data, config)
                 elif FLAGS.test_index == 6:
-                    run_cseqgan_and_output_org_out(session, model, data, config, "output/csv_cseq")
+                    run_cseqgan_and_interact(session, model, data, config, "output/csv_cseq")
                 elif FLAGS.test_index == 7:
                     check_quart_actv(session, model, data, config)
                 elif FLAGS.test_index == -1:
