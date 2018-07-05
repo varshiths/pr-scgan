@@ -97,37 +97,11 @@ class JSLAD(JSLA):
 		ann_encodings, lengths = self.process_input(sentences, indices_of_words)
 
 		return [gestures, gesture_means, ann_encodings, lengths, indices_of_words]
-
-	def process_input(self, sentences, indices_of_words=None):
-
-		# obtaining dictionaries
-		try:
-			if indices_of_words is None:
-				indices_of_words = self.indices_of_words
-		except Exception as e:
-			raise Exception("Dictionary not defined")
-
-		nsentences = len(sentences)
-		slen = self.config.annot_seq_length
-		swidth = self.config.vocab_size
-
-		ohencodings = np.zeros((nsentences, slen, swidth))
-		lengths = np.zeros((nsentences), dtype=int)
-		
-		for i, sentence in enumerate(sentences):
-			indices = [ indices_of_words[word] for word in sentence ]
-			_len = len(sentence)
-			lengths[i] = _len; poss = np.arange(_len)
-			ohencodings[i, poss, indices] = 1.0
-
-		return ohencodings, lengths
 		
 	def denormalise(self, data_org):
 
 		_shape = data_org.shape
-		data = np.swapaxes(data_org, 0, -1)
-		data = quart_to_euler(data)
-		data = np.swapaxes(data, 0, -1)
+		data = data_org.astype(np.float32) * 3 - 180.0
 		
 		pos = np.broadcast_to(self.gesture_means, (_shape[0], _shape[1], _shape[2], 3))
 		ret = np.concatenate((pos, data), axis=-1)
