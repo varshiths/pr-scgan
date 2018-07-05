@@ -537,6 +537,8 @@ class CSeqGAN(BaseModel):
                     # import pdb; pdb.set_trace()
                     out_gen = self.generator_network(sentence, length, latent, start, i==0)
                     out_gen_s = self.softmax_and_class_sampler(out_gen, float_cast=False)
+                    ###~~~###
+                    tf.summary.histogram("output_generated", out_gen_s)
 
                     with tf.name_scope("gen_disc"):
                         disc_out_gen = self.discriminator_network(out_gen_s, i==0)
