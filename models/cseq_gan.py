@@ -553,7 +553,7 @@ class CSeqGAN(BaseModel):
                         gen_grads = self.compute_and_clip_gradients(gen_cost, self.gen_vars)
                         disc_grads = self.compute_and_clip_gradients(disc_cost, self.disc_vars)
 
-                out_gen_list.append(out_gen)
+                out_gen_list.append(out_gen_s)
                 gen_pretrain_cost_list.append(gen_pretrain_cost)
                 gen_cost_list.append(gen_cost)
                 disc_cost_list.append(disc_cost)
@@ -583,7 +583,7 @@ class CSeqGAN(BaseModel):
             # accumulate costs according to masks and stack outputs
             with tf.name_scope("outputs_and_cost_means"):
                 # setting other informative fetches
-                self.out_gen = tf.stack(out_gen_list, axis=0)
+                self.out_gen = tf.concat(out_gen_list, axis=0)
                 self.gen_pretrain_cost = average_costs(gen_pretrain_cost_list, mask_b)
                 self.gen_cost = average_costs(gen_cost_list, mask_b)
                 self.disc_cost = average_costs(disc_cost_list, mask_b)

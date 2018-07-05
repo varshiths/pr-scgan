@@ -23,10 +23,11 @@ def run_cseqgan_and_interact(sess, model, data, config, dirname):
 		model.latent.name	: sess.run(model.latent_distribution_sample),
 		model.start.name	: sess.run(model.start_token),
 	}
-	produced = run_with_input_and_denormalize(sess, model, data.denormalise, feed)
-	original = data.denormalise(batch["gestures"])
 
 	import pdb; pdb.set_trace()
+	
+	produced = run_with_input_and_denormalize(sess, model, data.denormalise, feed)
+	original = data.denormalise(batch["gestures"])
 
 	print("Test done")
 	# create_dirs([dirname])

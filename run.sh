@@ -3,10 +3,10 @@ time python3 main.py \
 	--cpu \
 	--seed 0 \
 	--dataset jslad \
-	--architecture cseqgan \
 	--config configs/cseqgan_dz.json \
-	--mode train \
+	--mode test \
 	--test_index -1 \
+	# --architecture cseqgan \
 	# --model dvyi0 \
 	# --save dvyi0 \
 	# --log \
