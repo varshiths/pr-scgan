@@ -67,6 +67,8 @@ class JSLAD(JSLA):
 		# gmmap = np.memmap(filename, dtype='float32', shape=gestures.shape)
 		# gmmap[:] = gestures[:]
 
+		import pdb; pdb.set_trace()
+
 		gestures = np.around((gestures+180.0)/self.config.dz_level).astype(int)
 		# nclasses = int(360/self.config.dz_level)
 

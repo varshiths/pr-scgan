@@ -26,6 +26,7 @@ logging = tf.logging
 flags.DEFINE_integer("seed", None, "seed to ensure reproducibility")
 flags.DEFINE_string("architecture", None, "architecture to use")
 flags.DEFINE_boolean("log", False, "log data and summaries for use with tensorboard")
+flags.DEFINE_boolean("cpu", False, "to use gpu or cpu")
 
 flags.DEFINE_string("config", None, "config file for hyper-parameters")
 flags.DEFINE_string("dataset", None, "dataset used for the model")
@@ -41,13 +42,21 @@ FLAGS = flags.FLAGS
 def main(argv):
 
     # build config
-    config = process_config(FLAGS.config); config.train_phase = "train" == FLAGS.mode; config.log = FLAGS.log; config.save = FLAGS.save
+    config = process_config(FLAGS.config); config.train_phase = "train" == FLAGS.mode
+    config.log = FLAGS.log; config.save = FLAGS.save
+    config.cpu = FLAGS.cpu
+    
+    if not config.cpu:
+        config.ngpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
+    else:
+        os.environ["CUDA_VISIBLE_DEVICES"]="-1"
+        config.ngpus = 1
+
     session_config = tf.ConfigProto(
         allow_soft_placement=True,
         log_device_placement=False,
         )
     session_config.gpu_options.allow_growth = True
-    config.ngpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
 
     if FLAGS.dataset == "mnist":
         data = MNIST(config)

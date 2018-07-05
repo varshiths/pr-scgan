@@ -113,14 +113,6 @@ def run_model_and_output_csv(sess, model, data, config, dirname):
 def etc(sess, model, data, config):
 
 	batch = data.random_batch()
-
-	feed = {
-		model.sentence.name	: batch["annotations"],
-		model.length.name	: batch["ann_lengths"],
-		model.latent.name	: sess.run(model.latent_distribution_sample),
-		model.start.name	: sess.run(model.start_token),
-	}
-	produced = run_with_input_and_denormalize(sess, model, data.denormalise, feed)
-	original = data.denormalise(batch["gestures"])
-
 	import pdb; pdb.set_trace()
+
+	print()

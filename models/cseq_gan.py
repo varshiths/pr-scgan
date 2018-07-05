@@ -494,6 +494,10 @@ class CSeqGAN(BaseModel):
 
     def build_model(self):
 
+        device = "gpu"
+        if self.config.cpu:
+            device = "cpu"
+
         initializer = tf.random_normal_initializer(0.0, self.config.init_std)
         with tf.variable_scope(tf.get_variable_scope(), initializer=initializer):
 
@@ -519,6 +523,7 @@ class CSeqGAN(BaseModel):
             gen_grads_list = []
             disc_grads_list = []
 
+
             for i in range(self.config.ngpus):
 
                 gesture     = gesture_b[i]
@@ -528,7 +533,7 @@ class CSeqGAN(BaseModel):
                 start       = start_b[i]
                 mask        = mask_b[i]
 
-                with tf.device('/gpu:%d' % i), tf.name_scope("tower%d"%i):
+                with tf.device('/%s:%d' % (device, i)), tf.name_scope("tower%d"%i):
                     # import pdb; pdb.set_trace()
                     out_gen = self.generator_network(sentence, length, latent, start, i==0)
                     out_gen_s = self.softmax_and_class_sampler(out_gen, float_cast=False)
