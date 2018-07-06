@@ -304,7 +304,6 @@ class CSeqGAN(BaseModel):
 
             outputs = outputs.rnn_output
             outputs = tf.reshape(outputs, [batch_size, self.config.sequence_length, self.config.sequence_width, self.config.or_angles, self.config.ang_classes])
-            outputs = tf.nn.softmax(outputs, axis=-1)
             # the outputs here are probabilities! not indices of classes!
 
         return outputs
