@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
 from .dirs import *
+from .utils import *
 
 
 def run_with_input_and_denormalize(sess, model, denorm_fn, feed):
@@ -15,6 +16,7 @@ def run_with_input_and_denormalize(sess, model, denorm_fn, feed):
 
 def run_cseqgan_and_interact(sess, model, data, config, dirname):
 
+	print("run_cseqgan_and_interact")
 	batch = data.random_batch()
 
 	feed = {
@@ -24,16 +26,28 @@ def run_cseqgan_and_interact(sess, model, data, config, dirname):
 		model.start.name	: sess.run(model.start_token),
 	}
 
-	import pdb; pdb.set_trace()
-	
-	produced = run_with_input_and_denormalize(sess, model, data.denormalise, feed)
-	original = data.denormalise(batch["gestures"])
+	produced_d = run_with_input_and_denormalize(sess, model, data.denormalise, feed)
+	original_d = data.denormalise(batch["gestures"])
 
-	print("Test done")
-	# create_dirs([dirname])
-	# for i in range(produced.shape[0]):
-	# 	np.savetxt("%s/gesture.%d.prod.csv" % (dirname, i), np.transpose(produced[i, :, :]), delimiter=",")
-	# 	np.savetxt("%s/gesture.%d.orgn.csv" % (dirname, i), np.transpose(original[i, :, :]), delimiter=",")
+	produced = np.apply_along_axis(func1d=lambda x: conv_smooth(x), axis=1, arr=produced_d)
+	original = np.apply_along_axis(func1d=lambda x: conv_smooth(x), axis=1, arr=original_d)
+
+	# rev utils
+	rd = { value: key for key, value in data.indices_of_words.items() }
+	lookup_vec = np.vectorize( lambda x: rd[x] )
+	# prep annotation
+	indxs = np.argmax(batch["annotations"], axis=-1)
+	annotation = lookup_vec(indxs)
+
+	create_dirs([dirname])
+	for i in range(produced.shape[0]):
+		# np.savetxt("%s/gesture.%d.annotation.csv" % (dirname, i), annotation[i], delimiter=",")
+		with open("%s/gesture.%d.annotation.txt" % (dirname, i), "w") as flh:
+			flh.write(" ".join(annotation[i].tolist()))
+		np.savetxt("%s/gesture.%d.prod.csv" % (dirname, i), np.transpose(produced[i, :, :]), delimiter=",")
+		np.savetxt("%s/gesture.%d.orgn.csv" % (dirname, i), np.transpose(original[i, :, :]), delimiter=",")
+
+	print("files written into %s" % dirname)
 
 def sigm(arr):
 	return 1/(1+np.exp(-arr))
