@@ -432,8 +432,8 @@ class CSeqGAN(BaseModel):
         _gen_angles = self.softmax_and_class_sampler(_gen)
         # angle sensitive distance measure - (sin(theta/2))**2 - distance between the points on the unit circle
         differences = tf.square(tf.sin((1./2.)*(2*np.pi*(self.config.dz_level)/360)*(_gen_angles[:,1:,:,:]-_gen_angles[:,:-1,:,:])))
-        smoothness_cost = tf.reduce_sum(tf.reduce_mean(tf.maximum(differences-self.config.smoothness_threshold, 0.0), axis=(1,2,3)))*mask \
-                            / tf.reduce_sum(mask)
+        ssc = tf.reduce_mean(tf.maximum(differences-self.config.smoothness_threshold, 0.0), axis=(1,2,3))
+        smoothness_cost = tf.reduce_sum(ssc*mask) / tf.reduce_sum(mask)
 
         def one_hot_and_smoothen_label(inp, smoothen=False):
             inp_hot = tf.one_hot(inp, depth=self.config.ang_classes, dtype=tf.float32)
