@@ -4,6 +4,9 @@ from .base_model import BaseModel
 from .utils import *
 import pprint
 
+from .MultiLayer import MultiLayer
+
+
 ppr = pprint.PrettyPrinter()
 sprint = lambda x: ppr.pprint(x)
 
@@ -279,21 +282,33 @@ class CSeqGAN(BaseModel):
                 next_inputs = tf.nn.leaky_relu(next_inputs)
                 finished = tf.tile([False], [batch_size])
                 return (finished, next_inputs, state)
-
             helper = tf.contrib.seq2seq.CustomHelper(
                     initialize_fn=initialize,
                     sample_fn=sample,
                     next_inputs_fn=next_inputs,
                 )
+
+            dense1=tf.layers.Dense(
+                units=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes*2,
+                name="dense1",
+            )
+            dense2=tf.layers.Dense(
+                units=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes,
+                name="dense2",
+            )
+            output_layer=MultiLayer(
+                # here units is a dummy input
+                units=1,
+                name="output_layer",
+            )
+            output_layer.add_layer(dense1)
+            output_layer.add_layer(dense2)
+            
             decoder = tf.contrib.seq2seq.BasicDecoder(
                 cell=cell,
                 helper=helper,
                 initial_state=cell_initial_state,
-                output_layer=tf.layers.Dense(
-                        units=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes,
-                        # activation=lambda x: custom_actv(x, self.config.nframes_gen, self.config.sequence_width, self.config.or_angles, self.config.ang_classes),
-                        name="output_embedding",
-                    ),
+                output_layer=output_layer,
                 )
             assert self.config.sequence_length % self.config.nframes_gen == 0
             outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
@@ -304,7 +319,7 @@ class CSeqGAN(BaseModel):
 
             outputs = outputs.rnn_output
             outputs = tf.reshape(outputs, [batch_size, self.config.sequence_length, self.config.sequence_width, self.config.or_angles, self.config.ang_classes])
-            # the outputs here are probabilities! not indices of classes!
+            # the outputs here are ***not*** probabilities! neither are they indices of classes!
 
         return outputs
 
@@ -604,4 +619,5 @@ class CSeqGAN(BaseModel):
 
     def build_validation_metrics(self):
         tf.summary.scalar("cost", self.gen_pretrain_cost)
+        # print(self.gen_vars)
         pass
