@@ -289,12 +289,18 @@ class CSeqGAN(BaseModel):
                 )
 
             dense1=tf.layers.Dense(
-                units=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes*2,
+                units=1024,
+                activation=tf.nn.leaky_relu,
                 name="dense1",
             )
             dense2=tf.layers.Dense(
-                units=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes,
+                units=2048,
+                activation=tf.nn.leaky_relu,
                 name="dense2",
+            )
+            dense3=tf.layers.Dense(
+                units=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes,
+                name="dense3",
             )
             output_layer=MultiLayer(
                 # here units is a dummy input
@@ -303,6 +309,7 @@ class CSeqGAN(BaseModel):
             )
             output_layer.add_layer(dense1)
             output_layer.add_layer(dense2)
+            output_layer.add_layer(dense3)
             
             decoder = tf.contrib.seq2seq.BasicDecoder(
                 cell=cell,
