@@ -488,8 +488,7 @@ class CSeqGAN(BaseModel):
         grads = tf.reshape(tf.gradients(disc_x, x)[0], [batch_size, -1])
         grad_cost = tf.reduce_mean(tf.square(tf.norm(grads, axis=1) - 1))
 
-        cost = tf.reduce_mean((discval_gen-discval_target)*mask) + \
-                grad_cost*self.config.grad_penalty_weight
+        cost = tf.reduce_mean((discval_gen-discval_target)*mask) + grad_cost*self.config.grad_penalty_weight
         return cost
 
     def build_model(self):
