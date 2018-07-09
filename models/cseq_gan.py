@@ -173,6 +173,27 @@ class CSeqGAN(BaseModel):
 
         return outputs
 
+    def output_network(self, out_size):
+        # outsize = self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes
+        
+        dense1=tf.layers.Dense(
+            units=512,
+            activation=tf.nn.leaky_relu,
+            name="dense1",
+        )
+        dense2=tf.layers.Dense(
+            units=out_size,
+            name="dense2",
+        )
+        output_layer=MultiLayer(
+            # here units is a dummy input
+            units=1,
+            name="output_layer",
+        )
+        output_layer.add_layer(dense1)
+        output_layer.add_layer(dense2)
+
+
     def decoder_network(self, states, length, latent, start):
         
         with tf.variable_scope("decoder"):
@@ -288,34 +309,12 @@ class CSeqGAN(BaseModel):
                     next_inputs_fn=next_inputs,
                 )
 
-            dense1=tf.layers.Dense(
-                units=1024,
-                activation=tf.nn.leaky_relu,
-                name="dense1",
-            )
-            dense2=tf.layers.Dense(
-                units=2048,
-                activation=tf.nn.leaky_relu,
-                name="dense2",
-            )
-            dense3=tf.layers.Dense(
-                units=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes,
-                name="dense3",
-            )
-            output_layer=MultiLayer(
-                # here units is a dummy input
-                units=1,
-                name="output_layer",
-            )
-            output_layer.add_layer(dense1)
-            output_layer.add_layer(dense2)
-            output_layer.add_layer(dense3)
-            
+            output_network = self.output_network(out_size=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes)
             decoder = tf.contrib.seq2seq.BasicDecoder(
                 cell=cell,
                 helper=helper,
                 initial_state=cell_initial_state,
-                output_layer=output_layer,
+                output_layer=output_network,
                 )
             assert self.config.sequence_length % self.config.nframes_gen == 0
             outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
