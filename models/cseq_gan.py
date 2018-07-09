@@ -104,20 +104,21 @@ class CSeqGAN(BaseModel):
                 ([5, 5, 16, 16], [1, 1, 1, 1], [1, 1, 1, 1]),
                 ([5, 5, 16,  1], [1, 1, 1, 1], [1, 1, 1, 1]),
             ]
-            cnn_unit_disc0 = CSeqGAN.cnn_unit(lp0, "leaky_relu", "SAME", "block0")
-            cnn_unit_disc1 = CSeqGAN.cnn_unit(lp1, "leaky_relu", "SAME", "block1")
+            cnn_unit_0 = CSeqGAN.cnn_unit(lp0, "leaky_relu", "SAME", "block0", self.config.cpu)
+            cnn_unit_1 = CSeqGAN.cnn_unit(lp1, "leaky_relu", "SAME", "block1", self.config.cpu)
 
+            channel_axis = 3 if self.config.cpu else 1
             # expand dims
-            inputs = tf.expand_dims(inputs, axis=1)
+            inputs = tf.expand_dims(inputs, axis=channel_axis)
 
             # conv + res
-            outputs = cnn_unit_disc0(inputs)
+            outputs = cnn_unit_0(inputs)
             outputs += inputs
-            outputs = cnn_unit_disc1(outputs)
+            outputs = cnn_unit_1(outputs)
             outputs += inputs
 
             # expand dims
-            outputs = tf.squeeze(outputs, axis=1)
+            outputs = tf.squeeze(outputs, axis=channel_axis)
 
         return outputs
 
@@ -175,24 +176,33 @@ class CSeqGAN(BaseModel):
 
     def output_network(self, out_size):
         # outsize = self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes
+        # inputsize = self.config.lstm_units_gen
+        # usually 256
         
-        dense1=tf.layers.Dense(
-            units=512,
-            activation=tf.nn.leaky_relu,
-            name="dense1",
-        )
-        dense2=tf.layers.Dense(
-            units=out_size,
-            name="dense2",
-        )
-        output_layer=MultiLayer(
-            # here units is a dummy input
-            units=1,
-            name="output_layer",
-        )
-        output_layer.add_layer(dense1)
-        output_layer.add_layer(dense2)
+        with tf.variable_scope("output_network"):
+            
+            dense1=tf.layers.Dense(
+                units=2048,
+                activation=tf.nn.leaky_relu,
+                name="dense1",
+            )
+            dense2=tf.layers.Dense(
+                units=out_size,
+                name="dense2",
+            )
 
+            network=MultiLayer(
+                # here units is a dummy input
+                units=1,
+                name="output_layer",
+            )
+            network.add_layer(dense1)
+            network.add_layer(dense2)
+
+            # set debug for the object
+            # network.set_debug(True)
+
+        return network
 
     def decoder_network(self, states, length, latent, start):
         
@@ -346,18 +356,19 @@ class CSeqGAN(BaseModel):
             out = tf.cast(out, dtype=tf.float32)
         return out
 
-    def cnn_unit(params, activation=None, padding="SAME", scope=""):
+    def cnn_unit(params, activation=None, padding="SAME", scope="", cpu=False):
 
         def get_variable(filt_dim, scope):
             return tf.get_variable(scope, filt_dim)
 
         def function(inp):
             out = inp
+            data_format = "NHWC" if cpu else "NCHW"
             for i, (filt_dim, strides, dilations) in enumerate(params):
                 out = tf.nn.conv2d(
                     out, 
                     get_variable(filt_dim, scope+"/conv%d" % (i)), 
-                    data_format="NCHW",
+                    data_format=data_format,
                     strides=strides,
                     dilations=dilations,
                     padding=padding

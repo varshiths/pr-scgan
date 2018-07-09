@@ -6,11 +6,17 @@ class MultiLayer(tf.layers.Layer):
 	def __init__(self, *args, **kwargs):
 		super(MultiLayer, self).__init__()
 		self.layers = []
+		self.debug = False
+
+	def set_debug(self, debug):
+		self.debug = debug
 	
 	def add_layer(self, layer):
 		self.layers.append(layer)
 
 	def call(self, inputs):
+		if self.debug:
+			import pdb; pdb.set_trace()
 		out = inputs
 		for layer in self.layers:
 			out = layer.apply(out)
