@@ -1,0 +1,65 @@
+{
+  "sequence_length": 1024,
+  "sequence_width": 10,
+  "or_angles": 3,
+  "ang_classes": 120,
+
+  "vocab_size": 264,
+  "annot_seq_length": 32,
+  "annot_embedding": 128,
+
+  "lstm_input_enc" : 128,
+  "lstm_units_enc" : 128,
+  "lstm_layers_enc" : 2,
+
+  "latent_state_size": 256,
+  "embed_states": 512,
+
+  "att_heads" : 1,
+
+  "lstm_input_gen" : 256,
+  "lstm_units_gen" : 256,
+  "lstm_layers_gen" : 4,
+
+  "nframes_gen": 8,
+
+  "num_pretrain_epochs": 1000000,
+  "num_epochs": 0,
+  "disc_ascents": 2,
+  "gen_descents": 2,
+
+  "batch_size": 2,
+
+  "latent_std": 0.0,
+  "init_std": 0.01,
+  "learning_rate": 0.00001,
+  "learning_rate_decay": 0.75,
+  "stagnant_period": 1000,
+  "max_grad": 1.0,
+  "keep_prob" : 0.2,
+
+  "smoothness_threshold": 1.5e-5,
+  "disc_cost_weight": 0.0,
+  "grad_penalty_weight": 1.0,
+  "smoothness_weight": 5e3,
+
+  "dz_level": 3,
+
+  "allfiles": 1,
+  "select_joints": [
+
+  ],
+  "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
+  "annot_dir": "/home/user/shuwa/home/data/00_Annotations_20180427/",
+  "sentences_files": [
+    "/home/user/shuwa/home/vsreeramdass/Corpus/2017_コーパス_記録リスト＿例文_04_Eng.xlsx",
+    "/home/user/shuwa/home/vsreeramdass/Corpus/2018_コーパス_記録リスト＿例文_04_Eng.xlsx"
+  ],
+ 
+  "checkpoint_dir": "save/csg_dz_s/",
+  "log_dir": "log/",
+  "max_to_keep": 1000,
+  "save_freq": 1000,
+  
+  "dummy":0
+}

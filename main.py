@@ -68,6 +68,8 @@ def main(argv):
         data = JSLA(config)
     elif FLAGS.dataset == "jslad":
         data = JSLAD(config)
+    elif FLAGS.dataset == "jslads":
+        data = JSLADS(config)
     else:
         data = BaseData(config)
 

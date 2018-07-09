@@ -20,7 +20,7 @@ class JSLA(BaseData):
 	def __init__(self, config):
 		super(JSLA, self).__init__(config)
 		self.iter_set = -1
-		self.data_path = "JSLA_data/data.npy"
+		self.data_path = self.get_data_path()
 
 		print("Loading data...")
 		# download/load if not already present
@@ -52,6 +52,9 @@ class JSLA(BaseData):
 		self.annotations_test = storage["annotations_test"]
 		self.ann_lengths_test = storage["ann_lengths_test"]
 		del storage
+
+	def get_data_path(self):
+		return "JSLA_data/data.npy"
 
 	def load_npy(self):
 		arrays = []
