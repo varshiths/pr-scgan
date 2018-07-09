@@ -3,6 +3,9 @@ import matplotlib.image as mpimg
 import numpy as np
 from .tests import *
 
+from data.utils import general_pad
+from .utils import *
+
 
 def run_quart_model_and_plot_gesture(sess, model, data, config):
 
@@ -50,24 +53,17 @@ def run_quart_model_and_output_csv(sess, model, data, config, dirname):
 
 def run_data_norm_and_denorm(sess, model, data, config):
 	
-	jsld = data.load_jsl_from_folder()
 
-	import pdb; pdb.set_trace()
+	gesture_jsl, _, _ = ljff_out = data.load_jsl_from_folder()
+	_gestures = [ general_pad(x, config.sequence_length) for x in gesture_jsl ]
+	gesture_org = np.stack(_gestures, axis=0)
 
-	jsld = np.reshape(jsld, [-1, 64, 107, 6])
-	fno = 14
-	jsld[0,:,:fno,3:] = 0
-	jsld[0,:,fno+1:,3:] = 0
+	normd, _, _, _, _ = data.normalise(ljff_out)
+	gesture_dns = data.denormalise(normd)
+	gesture_dns = np.apply_along_axis(func1d=lambda x: conv_smooth(x), axis=1, arr=gesture_dns)
 
-	jsld = np.reshape(jsld, [-1, 64, 107*6])
+	np.savetxt("gesture_org.csv", np.transpose(gesture_org[0, :, :]), delimiter=",")
+	np.savetxt("gesture_dns.csv", np.transpose(gesture_dns[0, :, :]), delimiter=",")
 
-	np.savetxt("gesture_org.csv", np.transpose(jsld[0, :, :]), delimiter=",")
-	
-	dat, mean = data.normalise(jsld)
-	data.data_means = mean
-
-	jsld_nd = data.denormalise(dat)
-	np.savetxt("gesture_nd.csv", np.transpose(jsld_nd[0, :, :]), delimiter=",")
-
-	jsld	 = np.reshape(jsld, [-1, 64, 107, 6])
-	jsld_nd	 = np.reshape(jsld_nd, [-1, 64, 107, 6])
+	gesture_org	 = np.reshape(gesture_org, [-1, config.sequence_length, 107, 6])
+	gesture_dns	 = np.reshape(gesture_dns, [-1, config.sequence_length, 107, 6])

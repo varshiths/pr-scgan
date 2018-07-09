@@ -1,6 +1,7 @@
 {
   "sequence_length": 1024,
-  "sequence_width": 10,
+  "sequence_width": 14,
+  "sw_comment": "based on select_joints",
   "or_angles": 3,
   "ang_classes": 120,
 
@@ -46,8 +47,8 @@
   "dz_level": 3,
 
   "allfiles": 1,
-  "select_joints": [
-
+  "sections": [
+    "torso"
   ],
   "data_dir": "/home/user/shuwa/home/data/02_CSV_REAL/01_CSV_full/",
   "annot_dir": "/home/user/shuwa/home/data/00_Annotations_20180427/",
