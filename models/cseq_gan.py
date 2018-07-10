@@ -496,10 +496,13 @@ class CSeqGAN(BaseModel):
         cecost = tf.nn.softmax_cross_entropy_with_logits_v2(labels=_target, logits=_gen)
         cecost = tf.reshape(cecost, data_shape[:-1])
 
+        # create target length mask here from _target_length
+        tlmask = tf.sequence_mask(_target_length, maxlen=self.config.sequence_length, dtype=tf.float32)
+
         # mean across features, and angles
         tcost = tf.reduce_mean(cecost, axis=(2,3))
-        # mean across time after masking with target length
-        icost = tf.reduce_mean(tcost[:, :_target_length], axis=(1))
+        # mean across time after masking with target length (multiply with tlmask)
+        icost = tf.reduce_sum(tcost*tlmask, axis=(1)) / tf.reduce_sum( tlmask, axis=(1) )
         # apply mask
         target_cost = tf.reduce_sum(icost*mask) / tf.reduce_sum(mask)
 
