@@ -36,7 +36,7 @@ class JSLADS(JSLAD):
 		jp = self.get_joint_indices_partition(self.config.sections)
 		gestures_slct = gestures[:, :, jp[0], :]
 		# gestures_nslct = gestures[0, 0, jp[1], :]
-		gestures_nslct = np.mean(gestures[:, :, jp[1], :], axis=0,1)
+		gestures_nslct = np.mean(gestures[:, :, jp[1], :], axis=(0,1))
 
 		# encode words into one hot encodings
 		annotations, ann_lengths = self.process_input(sentences, indices_of_words)
