@@ -58,7 +58,7 @@ def run_data_norm_and_denorm(sess, model, data, config):
 	_gestures = [ general_pad(x, config.sequence_length) for x in gesture_jsl ]
 	gesture_org = np.stack(_gestures, axis=0)
 
-	normd, _, _, _, _ = data.normalise(ljff_out)
+	_, _, normd, _, _, _ = data.normalise(ljff_out)
 	gesture_dns = data.denormalise(normd)
 	gesture_dns = np.apply_along_axis(func1d=lambda x: conv_smooth(x), axis=1, arr=gesture_dns)
 
