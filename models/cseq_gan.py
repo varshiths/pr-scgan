@@ -24,6 +24,11 @@ class CSeqGAN(BaseModel):
                 ],
                 name="gesture",
             )
+        self.gst_length = tf.placeholder(
+                dtype=tf.int32,
+                shape=[self.config.batch_size],
+                name="gst_length",
+            )
 
         self.sentence = tf.placeholder(
                 dtype=tf.float32,
@@ -447,17 +452,17 @@ class CSeqGAN(BaseModel):
             self.disc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
         return out
 
-    def generator_costs(self, mask, discval_gen, _gen, _target):
+    def generator_costs(self, mask, discval_gen, _gen, _target, _target_length):
 
         # discriminator cost
         disc_cost = -tf.reduce_sum(discval_gen * mask) / tf.reduce_sum(mask)
         # pretrain_cost
-        pretrain_cost = self.generator_pretrain_cost(mask, _gen, _target)
+        pretrain_cost = self.generator_pretrain_cost(mask, _gen, _target, _target_length)
         # adversarial loss
         gan_cost = disc_cost*self.config.disc_cost_weight + pretrain_cost
         return pretrain_cost, gan_cost
 
-    def generator_pretrain_cost(self, mask, _gen, _target):
+    def generator_pretrain_cost(self, mask, _gen, _target, _target_length):
 
         # get angles after softmax and class sampler
         _gen_angles = self.softmax_and_class_sampler(_gen)
@@ -491,8 +496,10 @@ class CSeqGAN(BaseModel):
         cecost = tf.nn.softmax_cross_entropy_with_logits_v2(labels=_target, logits=_gen)
         cecost = tf.reshape(cecost, data_shape[:-1])
 
-        # mean across time, features, and angles
-        icost = tf.reduce_mean(cecost, axis=(1,2,3))
+        # mean across features, and angles
+        tcost = tf.reduce_mean(cecost, axis=(2,3))
+        # mean across time after masking with target length
+        icost = tf.reduce_mean(tcost[:, :_target_length], axis=(1))
         # apply mask
         target_cost = tf.reduce_sum(icost*mask) / tf.reduce_sum(mask)
 
@@ -538,6 +545,7 @@ class CSeqGAN(BaseModel):
             with tf.name_scope("split_batches"):
                 # split feed into batches for ngpus
                 gesture_b = make_batches(self.config.ngpus, self.gesture)
+                gst_length_b = make_batches(self.config.ngpus, self.gst_length)
                 sentence_b = make_batches(self.config.ngpus, self.sentence)
                 length_b = make_batches(self.config.ngpus, self.length)
                 latent_b = make_batches(self.config.ngpus, self.latent)
@@ -557,6 +565,7 @@ class CSeqGAN(BaseModel):
             for i in range(self.config.ngpus):
 
                 gesture     = gesture_b[i]
+                gst_length  = gst_length_b[i]
                 sentence    = sentence_b[i]
                 length      = length_b[i]
                 latent      = latent_b[i]
@@ -576,7 +585,7 @@ class CSeqGAN(BaseModel):
                         disc_out_target = self.discriminator_network(gesture)
 
                     with tf.name_scope("gen_cost"):
-                        gen_pretrain_cost, gen_cost = self.generator_costs(mask, disc_out_gen, out_gen, gesture)
+                        gen_pretrain_cost, gen_cost = self.generator_costs(mask, disc_out_gen, out_gen, gesture, gst_length)
                     with tf.name_scope("disc_cost"):
                         disc_cost = self.discriminator_cost(mask, disc_out_gen, disc_out_target, out_gen_s, gesture, i==0)
 
