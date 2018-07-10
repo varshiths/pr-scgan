@@ -5,8 +5,8 @@ time python3 main.py \
 	--architecture cseqgan \
 	--config configs/csg_dz_s.json \
 	--dataset jslads \
-	--mode train \
-	# --test_index 5 \
+	--mode test \
+	--test_index 5 \
 	# --model dvyi0 \
 	# --save dvyi0 \
 	# --log \
