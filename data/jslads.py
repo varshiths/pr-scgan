@@ -19,6 +19,7 @@ class JSLADS(JSLAD):
 		gestures, sentences, indices_of_words = data
 
 		print("Transforming and selecting data...")
+		gst_lengths = np.array([ len(x) for x in gestures ])
 		_gestures = [ general_pad(x, self.config.sequence_length) for x in gestures ]
 		gestures = np.stack(_gestures, axis=0); del _gestures
 
@@ -38,9 +39,9 @@ class JSLADS(JSLAD):
 		gestures_nslct = np.mean(gestures[:, :, jp[1], :], axis=0,1)
 
 		# encode words into one hot encodings
-		ann_encodings, lengths = self.process_input(sentences, indices_of_words)
+		annotations, ann_lengths = self.process_input(sentences, indices_of_words)
 
-		return [gestures_slct, (gesture_means, gestures_nslct), ann_encodings, lengths, indices_of_words]
+		return [(gesture_means, gestures_nslct), indices_of_words, gestures_slct, gst_lengths, annotations, ann_lengths]
 		
 	def denormalise(self, data):
 

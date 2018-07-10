@@ -41,14 +41,17 @@ class JSLA(BaseData):
 		self.indices_of_words = storage["indices_of_words"]
 
 		self.gestures = storage["gestures"]
+		self.gst_lengths = storage["gst_lengths"]
 		self.annotations = storage["annotations"]
 		self.ann_lengths = storage["ann_lengths"]
 
 		self.gestures_val = storage["gestures_val"]
+		self.gst_lengths_val = storage["gst_lengths_val"]
 		self.annotations_val = storage["annotations_val"]
 		self.ann_lengths_val = storage["ann_lengths_val"]
 
 		self.gestures_test = storage["gestures_test"]
+		self.gst_lengths_test = storage["gst_lengths_test"]
 		self.annotations_test = storage["annotations_test"]
 		self.ann_lengths_test = storage["ann_lengths_test"]
 		del storage
@@ -70,7 +73,7 @@ class JSLA(BaseData):
 		np.save(self.data_path, arrays)
 
 	def split_into_test_train_eval(self, normalized_data, seed=0):
-		gestures, gesture_means, ann_encodings, lengths, indices_of_words = normalized_data
+		gesture_means, indices_of_words, gestures, gst_lengths, annotations, ann_lengths = normalized_data
 
 		# shuffle
 		ndata = gestures.shape[0]
@@ -84,16 +87,19 @@ class JSLA(BaseData):
 			"indices_of_words" 	: indices_of_words,
 
 			"gestures" 			: gestures[ntrain],
-			"annotations" 		: ann_encodings[ntrain],
-			"ann_lengths" 		: lengths[ntrain],
+			"gst_lengths" 		: gst_lengths[ntrain],
+			"annotations" 		: annotations[ntrain],
+			"ann_lengths" 		: ann_lengths[ntrain],
 
 			"gestures_val" 		: gestures[nval],
-			"annotations_val" 	: ann_encodings[nval],
-			"ann_lengths_val" 	: lengths[nval],
+			"gst_lengths_val" 	: gst_lengths[nval],
+			"annotations_val" 	: annotations[nval],
+			"ann_lengths_val" 	: ann_lengths[nval],
 
 			"gestures_test" 	: gestures[ntest],
-			"annotations_test" 	: ann_encodings[ntest],
-			"ann_lengths_test" 	: lengths[ntest],
+			"gst_lengths_test" 	: gst_lengths[ntest],
+			"annotations_test" 	: annotations[ntest],
+			"ann_lengths_test" 	: ann_lengths[ntest],
 		}
 		return split_data
 
@@ -102,6 +108,7 @@ class JSLA(BaseData):
 		gestures, sentences, indices_of_words = data
 
 		print("Transforming and selecting data...")
+		gst_lengths = np.array([ len(x) for x in gestures ])
 		gestures = [ general_pad(x, self.config.sequence_length) for x in gestures ]
 		gestures = np.stack(gestures, axis=0)
 
@@ -133,9 +140,9 @@ class JSLA(BaseData):
 		# gestures = np.swapaxes(gestures, 0, -1)
 
 		# encode words into one hot encodings
-		ann_encodings, lengths = self.process_input(sentences, indices_of_words)
+		annotations, ann_lengths = self.process_input(sentences, indices_of_words)
 
-		return [gestures, gesture_means, ann_encodings, lengths, indices_of_words]
+		return [gesture_means, indices_of_words, gestures, gst_lengths, annotations, ann_lengths]
 
 	def process_input(self, sentences, indices_of_words=None):
 
@@ -280,12 +287,14 @@ class JSLA(BaseData):
 			nsamples = np.reshape(nsamples, [-1, self.config.batch_size])
 
 			self.batches_gestures = self.gestures[nsamples]
+			self.batches_gst_lengths = self.gst_lengths[nsamples]
 			self.batches_annotations = self.annotations[nsamples]
 			self.batches_ann_lengths = self.ann_lengths[nsamples]
 			self.iter_set = nsamples.shape[0]-1
 
 		batch = {
 			"gestures": self.batches_gestures[self.iter_set],
+			"gst_lengths": self.batches_gst_lengths[self.iter_set],
 			"annotations": self.batches_annotations[self.iter_set],
 			"ann_lengths": self.batches_ann_lengths[self.iter_set],
 		}
@@ -299,29 +308,14 @@ class JSLA(BaseData):
 
 		batch = {
 			"gestures": self.gestures[choices],
+			"gst_lengths": self.gst_lengths[choices],
 			"annotations": self.annotations[choices],
 			"ann_lengths": self.ann_lengths[choices],
 		}
 		return batch
 
 	def validation_batches(self):
-
-		ndata = self.gestures_val.shape
-		pad = -ndata%self.config.batch_size
-
-		batch = {
-			"gestures": self.gestures[choices],
-			"annotations": self.annotations[choices]
-		}
-		return batch
+		raise NotImplementedError
 
 	def test_batches(self):
-
-		n_data = self.gestures.shape[0]
-		choices = np.random.randint(0, n_data, [self.config.batch_size])
-
-		batch = {
-			"gestures": self.gestures[choices],
-			"annotations": self.annotations[choices]
-		}
-		return batch
+		raise NotImplementedError
