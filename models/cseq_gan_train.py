@@ -34,6 +34,7 @@ class CSeqGANTrain(GANTrain):
             i+=1
             feed = {
                 self.model.gesture.name : batch["gestures"],
+                self.model.gst_length.name : batch["gst_lengths"],
                 self.model.sentence.name : batch["annotations"],
                 self.model.length.name : batch["ann_lengths"],
                 self.model.latent.name : self.sess.run(self.model.latent_distribution_sample),

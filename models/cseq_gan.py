@@ -633,7 +633,7 @@ class CSeqGAN(BaseModel):
             for var, grad in zip(self.gen_vars, gen_pretrain_grads):
                 tf.summary.histogram(var.name, var)
                 tf.summary.scalar(var.name + "_grad_mean", tf.reduce_mean(grad))
-            # tf.summary.scalar("gen_pretrain_norms", self.gen_pretrain_grads)
+            tf.summary.scalar(self.learning_rate.name, self.learning_rate)
 
             self.build_validation_metrics()
 
