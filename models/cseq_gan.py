@@ -153,10 +153,10 @@ class CSeqGAN(BaseModel):
             tf.summary.histogram("embed_inputs", embed_inputs)
             # position embeddings
             pos_embed_inputs = self.position_embeddings(embed_inputs)
-            # prenet
-            prenet_outputs = self.prenet(pos_embed_inputs)
             # cfblock
-            cfblock_outputs = self.cfblock(prenet_outputs)
+            cfblock_outputs = self.cfblock(pos_embed_inputs)
+            # prenet
+            prenet_outputs = self.prenet(cfblock_outputs)
             # rnn
             cells_fw = CSeqGAN.rnn_unit(
                     self.config.lstm_units_enc, 
@@ -171,7 +171,7 @@ class CSeqGAN(BaseModel):
             outputs = tf.nn.bidirectional_dynamic_rnn(
                     cells_fw,
                     cells_bw,
-                    cfblock_outputs,
+                    prenet_outputs,
                     sequence_length=length,
                     dtype=tf.float32,
                 )
@@ -220,9 +220,11 @@ class CSeqGAN(BaseModel):
                 latent = tf.tile(latent, (1, states.shape[1].value, 1))
                 sl = tf.concat([states, latent], axis=2)
 
-                embed_states = tf.layers.dense(sl, self.config.embed_states)
-                embed_states = tf.contrib.layers.batch_norm(embed_states, is_training=self.config.train_phase)
-                embed_states = tf.nn.leaky_relu(embed_states)
+                embed_states = sl
+                # skip embedding
+                # embed_states = tf.layers.dense(sl, self.config.embed_states)
+                # embed_states = tf.contrib.layers.batch_norm(embed_states, is_training=self.config.train_phase)
+                # embed_states = tf.nn.leaky_relu(embed_states)
 
             def custom_actv(inp, nframes, seqw, nangs, nclass):
 
@@ -286,10 +288,10 @@ class CSeqGAN(BaseModel):
                     # construct prob distr from logits
                     # consider max from distr and embed
                     out = self.softmax_and_class_sampler(out, float_cast=False)
-                    table = tf.get_variable("embedding", [self.config.ang_classes, 16])
+                    table = tf.get_variable("embedding", [self.config.ang_classes, self.config.annot_embedding])
                     out = tf.nn.embedding_lookup(table, out)
                     out = tf.reshape(out, [b, -1])
-                    out = tf.layers.dense(out, 256, name="fc0")
+                    # out = tf.layers.dense(out, 256, name="fc0")
                     return out
 
             def initialize():
