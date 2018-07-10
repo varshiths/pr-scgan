@@ -7,6 +7,8 @@ import csv
 from collections import OrderedDict
 from .base_data import BaseData
 
+from utils.dirs import create_dirs
+
 import unicodedata as ucd
 
 from memory_profiler import profile
@@ -70,6 +72,7 @@ class JSLA(BaseData):
 	def save_npy(self, arrays):
 
 		print("Saving data to npy files...")
+		create_dirs([os.path.dirname(self.data_path)])
 		np.save(self.data_path, arrays)
 
 	def split_into_test_train_eval(self, normalized_data, seed=0):
