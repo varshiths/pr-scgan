@@ -42,9 +42,12 @@ FLAGS = flags.FLAGS
 def main(argv):
 
     # build config
-    config = process_config(FLAGS.config); config.train_phase = "train" == FLAGS.mode
+    config = process_config(FLAGS.config); config.mode = FLAGS.mode
     config.log = FLAGS.log; config.save = FLAGS.save
     config.cpu = FLAGS.cpu
+
+    if config.mode not in ["train", "test", "val"]:
+        raise Exception
     
     if not config.cpu:
         config.ngpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])

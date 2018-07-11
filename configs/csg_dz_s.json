@@ -16,8 +16,9 @@
   "lstm_layers_enc" : 2,
 
   "latent_state_size": 256,
-  "embed_states": 512,
+  "lss_comment": "should be same as 2*lstm_units_enc",
 
+  "att_mech_units": 128,
   "att_heads" : 1,
 
   "lstm_input_gen" : 256,

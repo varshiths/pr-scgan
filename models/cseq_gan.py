@@ -71,7 +71,7 @@ class CSeqGAN(BaseModel):
             stddev=self.config.latent_std,
             )
 
-    def rnn_unit(num_units, num_layers, keep_prob):
+    def rnn_unit(num_units, num_layers, keep_prob, return_as_list=False):
 
         def rnn_cell():
             return tf.contrib.rnn.DropoutWrapper(
@@ -83,17 +83,21 @@ class CSeqGAN(BaseModel):
             dtype=tf.float32
             )
 
-        return tf.contrib.rnn.MultiRNNCell([rnn_cell() for _ in range(num_layers)])
+        cell_list = [rnn_cell() for _ in range(num_layers)]
+        ret_entity = cell_list
+        if not return_as_list:
+            ret_entity = tf.contrib.rnn.MultiRNNCell(ret_entity) 
+        return ret_entity
 
     def prenet(self, inputs):
 
         with tf.variable_scope("prenet"):
 
             fc1 = tf.layers.dense(inputs, units=self.config.lstm_input_enc, activation=tf.nn.leaky_relu, name="fc1")
-            outputs = tf.layers.dropout( fc1, training=self.config.train_phase, name="do1")
+            outputs = tf.layers.dropout( fc1, training=self.config.mode == "train", name="do1")
 
             fc2 = tf.layers.dense(outputs, units=self.config.lstm_input_enc, activation=tf.nn.leaky_relu, name="fc2")
-            outputs = tf.layers.dropout( fc2, training=self.config.train_phase, name="do2")
+            outputs = tf.layers.dropout( fc2, training=self.config.mode == "train", name="do2")
 
         return outputs
 
@@ -184,7 +188,6 @@ class CSeqGAN(BaseModel):
 
     def output_network(self, out_size):
         # outsize = self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes
-        # inputsize = self.config.lstm_units_gen
         # usually 256
 
         with tf.variable_scope("output_network"):
@@ -218,56 +221,125 @@ class CSeqGAN(BaseModel):
 
         return network
 
-    def decoder_network(self, states, length, latent, start):
+    def decoder_network_new(self, states, length, latent, start):
+
+        with tf.variable_scope("decoder"):
+            batch_size = states.shape[0].value
+
+            # additive style vector
+            latent = tf.expand_dims(latent, axis=1)
+            states += latent
+
+            import pdb; pdb.set_trace()
+
+            decoder_cell_list = CSeqGAN.rnn_unit(
+                self.config.lstm_units_gen, 
+                self.config.lstm_layers_gen,
+                self.config.keep_prob,
+                return_as_list=True,
+                )
+            attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(
+                num_units=self.config.att_mech_units,
+                memory=states,
+                memory_sequence_length=length,
+                )
+            decoder_cell_list[0] = tf.contrib.seq2seq.AttentionWrapper(
+                cell=decoder_cell_list[0],
+                attention_mechanism=attention_mechanism,
+                attention_layer_size=self.config.lstm_units_gen,
+                )
+            decoder_cell = tf.contrib.rnn.MultiRNNCell(decoder_cell_list)
+            decoder_cell_initial_state = decoder_cell.zero_state(batch_size, tf.float32)
+
+            def output_prenet_and_scheduled_sampling(_produced, _target=None, scope="output_embedding", reuse=True):
+                batch_size = _produced.shape[0].value
+                with tf.variable_scope(scope, reuse=reuse):
+                    # construct prob distr from logits
+                    # consider max from distr and embed
+                    _produced = self.softmax_and_class_sampler(_produced, float_cast=False)
+                    table = tf.get_variable("embedding", [self.config.ang_classes, self.config.annot_embedding])
+                    _produced = tf.nn.embedding_lookup(table, _produced)
+                    output = _produced
+                    output = tf.reshape(output, [batch_size, -1])
+                    return output
+
+            context_output_projection = tf.layers.Dense(self.config.lstm_input_gen, activation=tf.nn.leaky_relu, name="context_output_projection")
+            # context_output_projection = lambda x: x
+
+            def initialize():
+                # apply prenet and scheduled sample
+                _start = output_prenet_and_scheduled_sampling(start, reuse=tf.get_variable_scope().reuse)
+                next_inputs = context_output_projection(_start)
+                finished = tf.tile([False], [batch_size])
+                return (finished, next_inputs)
+
+            def sample(time, outputs, state):
+                samples = tf.tile([0], [batch_size])
+                return samples
+
+            def next_inputs(time, outputs, state, sample_ids):
+                outputs = tf.reshape(outputs, [batch_size, self.config.nframes_gen, self.config.sequence_width, self.config.or_angles, self.config.ang_classes])
+                # consider the frames output and consider only the last for 
+                outputs = outputs[:, -1, ...]
+                # apply prenet and scheduled sample
+                _outputs = output_prenet_and_scheduled_sampling(outputs)
+                next_inputs = context_output_projection(_outputs)
+                finished = tf.tile([False], [batch_size])
+                return (finished, next_inputs, state)
+
+            helper = tf.contrib.seq2seq.CustomHelper(
+                    initialize_fn=initialize,
+                    sample_fn=sample,
+                    next_inputs_fn=next_inputs,
+                )
+
+            output_network = self.output_network(out_size=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes)
+            decoder = tf.contrib.seq2seq.BasicDecoder(
+                cell=decoder_cell,
+                helper=helper,
+                initial_state=decoder_cell_initial_state,
+                output_layer=output_network,
+                )
+            assert self.config.sequence_length % self.config.nframes_gen == 0
+            outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+                decoder=decoder,
+                output_time_major=False,
+                maximum_iterations=int(self.config.sequence_length / self.config.nframes_gen))
+
+            outputs = outputs.rnn_output
+            outputs = tf.reshape(outputs, [batch_size, self.config.sequence_length, self.config.sequence_width, self.config.or_angles, self.config.ang_classes])
+            # the outputs here are ***not*** probabilities! neither are they indices of classes!
+
+        return outputs
+
+    def decoder_network(self, states, length, latent, start, target):
         
         with tf.variable_scope("decoder"):
             batch_size = states.shape[0].value
 
-            # concat enc states, latent and embed
-            with tf.variable_scope("concat_embedding"):
-                latent = tf.expand_dims(latent, axis=1)
-                latent = tf.tile(latent, (1, states.shape[1].value, 1))
-                sl = tf.concat([states, latent], axis=2)
+            # additive style vector
+            latent = tf.expand_dims(latent, axis=1)
+            states += latent
 
-                embed_states = sl
-                # skip embedding
-                # embed_states = tf.layers.dense(sl, self.config.embed_states)
-                # embed_states = tf.contrib.layers.batch_norm(embed_states, is_training=self.config.train_phase)
-                # embed_states = tf.nn.leaky_relu(embed_states)
-
-            def custom_actv(inp, nframes, seqw, nangs, nclass):
-
-                b, dim = inp.shape.as_list()
-                assert dim == nframes * seqw * nangs * nclass
-
-                inp = tf.reshape(inp, [b * nframes * seqw * nangs, nclass])
-                actv = tf.nn.softmax(inp, axis=-1)
-                actv = tf.reshape(actv, [b, nframes * seqw * nangs * nclass])
-                return actv
-
-            # multi head attention mechanism + decode
-        
-            cell = CSeqGAN.rnn_unit(
+            # multi head attention mechanism + decode        
+            decoder_cell = CSeqGAN.rnn_unit(
                 self.config.lstm_units_gen, 
                 self.config.lstm_layers_gen,
                 self.config.keep_prob
                 )
-            cell_initial_state = cell.zero_state(batch_size, tf.float32)
-
-            # input embedding
-            embed_ctxt_latent = tf.layers.Dense(self.config.lstm_input_gen, name="embed_ctxt_latent")
+            decoder_cell_initial_state = decoder_cell.zero_state(batch_size, tf.float32)
 
             def apply_attention_net(_input, head):
                 att0 = tf.layers.dense(
                     _input, 
-                    self.config.annot_seq_length*10, 
-                    use_bias=False, 
+                    self.config.att_mech_units, 
+                    use_bias=True, 
                     activation=tf.nn.leaky_relu, 
-                    name="head%d/0"%head)
+                    name="head%d/layer0"%head)
                 att1 = tf.layers.dense(
                     att0, 
                     1, 
-                    name="head%d/1"%head)
+                    name="head%d/layer1"%head)
                 return att1
 
             def get_context_vec(query, scope="attention", reuse=True):
@@ -276,8 +348,8 @@ class CSeqGAN(BaseModel):
                     # query = tf.concat([tup.h for tup in query], axis=1)
                     query = query[0].h
                     query = tf.expand_dims(query, axis=1)
-                    query = tf.tile(query, [1, embed_states.shape[1].value, 1])
-                    states_split = tf.split(embed_states, self.config.att_heads, axis=2)
+                    query = tf.tile(query, [1, states.shape[1].value, 1])
+                    states_split = tf.split(states, self.config.att_heads, axis=2)
 
                     ccq_split = [ tf.concat([query, s], axis=2) for s in states_split ]
                     prob_split = [ tf.nn.softmax(tf.squeeze(apply_attention_net(s, ind), axis=2), axis=1) for ind, s in enumerate(ccq_split) ]
@@ -287,29 +359,31 @@ class CSeqGAN(BaseModel):
 
                 return ctxt
 
-            def out_prenet(out, scope="out_prenet", reuse=True):
-                '''
-                input shape = b x seqw x nangs x nclass
-                output shape = b x dim
-                '''
-                b = out.shape[0].value
+            def output_prenet_and_scheduled_sampling(_produced, _target=None, scope="output_embedding", reuse=True):
+                batch_size = _produced.shape[0].value
                 with tf.variable_scope(scope, reuse=reuse):
                     # construct prob distr from logits
                     # consider max from distr and embed
-                    out = self.softmax_and_class_sampler(out, float_cast=False)
+                    _produced = self.softmax_and_class_sampler(_produced, float_cast=False)
                     table = tf.get_variable("embedding", [self.config.ang_classes, self.config.annot_embedding])
-                    out = tf.nn.embedding_lookup(table, out)
-                    out = tf.reshape(out, [b, -1])
-                    # out = tf.layers.dense(out, 256, name="fc0")
-                    return out
+                    _produced = tf.nn.embedding_lookup(table, _produced)
+                    if self.config.mode == "train" and _target is not None:
+                        _target = tf.nn.embedding_lookup(table, _target)
+                        w = tf.random_uniform([batch_size,1,1,1], 0, 1)
+                        output = w * _produced + (1-w) * _target
+                    else:
+                        output = _produced
+
+                    output = tf.reshape(output, [batch_size, -1])
+                return output
+
+            output_projection = tf.layers.Dense(self.config.lstm_input_gen, activation=tf.nn.leaky_relu, name="output_projection")
 
             def initialize():
                 # apply prenet and get context vec 
-                _start = out_prenet(start, reuse=tf.get_variable_scope().reuse)
-                _ctxt_vec = get_context_vec(cell_initial_state, reuse=tf.get_variable_scope().reuse)
-                next_inputs = tf.concat([_ctxt_vec, _start], axis=1)
-                next_inputs = embed_ctxt_latent(next_inputs)
-                next_inputs = tf.nn.leaky_relu(next_inputs)
+                _start = output_prenet_and_scheduled_sampling(start, reuse=tf.get_variable_scope().reuse)
+                _ctxt_vec = get_context_vec(decoder_cell_initial_state, reuse=tf.get_variable_scope().reuse)
+                next_inputs = output_projection(tf.concat([_ctxt_vec, _start], axis=1))
                 finished = tf.tile([False], [batch_size])
                 return (finished, next_inputs)
 
@@ -322,11 +396,9 @@ class CSeqGAN(BaseModel):
                 # consider the frames output and consider only the last for 
                 outputs = outputs[:, -1, ...]
                 # apply prenet and get context vec 
-                _outputs = out_prenet(outputs)
+                _outputs = output_prenet_and_scheduled_sampling(outputs, target[:, time, ...])
                 _ctxt_vec = get_context_vec(state)
-                next_inputs = tf.concat([_ctxt_vec, _outputs], axis=1)
-                next_inputs = embed_ctxt_latent(next_inputs)
-                next_inputs = tf.nn.leaky_relu(next_inputs)
+                next_inputs = output_projection(tf.concat([_ctxt_vec, _outputs], axis=1))
                 finished = tf.tile([False], [batch_size])
                 return (finished, next_inputs, state)
             helper = tf.contrib.seq2seq.CustomHelper(
@@ -337,9 +409,9 @@ class CSeqGAN(BaseModel):
 
             output_network = self.output_network(out_size=self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes)
             decoder = tf.contrib.seq2seq.BasicDecoder(
-                cell=cell,
+                cell=decoder_cell,
                 helper=helper,
-                initial_state=cell_initial_state,
+                initial_state=decoder_cell_initial_state,
                 output_layer=output_network,
                 )
             assert self.config.sequence_length % self.config.nframes_gen == 0
@@ -355,12 +427,12 @@ class CSeqGAN(BaseModel):
 
         return outputs
 
-    def generator_network(self, sentence, length, latent, start, define=False):
+    def generator_network(self, sentence, length, latent, start, gesture, define=False):
 
         with tf.variable_scope("generator", reuse=(not define)):
            
            out_enc = self.encoder_network(sentence, length)
-           outputs = self.decoder_network(out_enc, length, latent, start)
+           outputs = self.decoder_network(out_enc, length, latent, start, gesture)
 
         if define:
             self.gen_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator")
@@ -588,7 +660,7 @@ class CSeqGAN(BaseModel):
 
                 with tf.device('/%s:%d' % (device, i)), tf.name_scope("tower%d"%i):
                     # import pdb; pdb.set_trace()
-                    out_gen = self.generator_network(sentence, length, latent, start, i==0)
+                    out_gen = self.generator_network(sentence, length, latent, start, gesture, i==0)
                     out_gen_s = self.softmax_and_class_sampler(out_gen, float_cast=False)
                     ###~~~###
                     tf.summary.histogram("output_generated", out_gen_s)
@@ -659,5 +731,5 @@ class CSeqGAN(BaseModel):
 
     def build_validation_metrics(self):
         tf.summary.scalar("cost", self.gen_pretrain_cost)
-        # print(self.gen_vars)
+        sprint(self.gen_vars)
         pass
