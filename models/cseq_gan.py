@@ -154,7 +154,10 @@ class CSeqGAN(BaseModel):
             # position embeddings
             pos_embed_inputs = self.position_embeddings(embed_inputs)
             # cfblock
-            cfblock_outputs = self.cfblock(pos_embed_inputs)
+            if self.config.cfblock_enc:
+                cfblock_outputs = self.cfblock(pos_embed_inputs)
+            else:
+                cfblock_outputs = pos_embed_inputs
             # prenet
             prenet_outputs = self.prenet(cfblock_outputs)
             # rnn

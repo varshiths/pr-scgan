@@ -8,6 +8,8 @@
   "vocab_size": 264,
   "annot_seq_length": 32,
   "annot_embedding": 128,
+  
+  "cfblock_enc": false,
 
   "lstm_input_enc" : 128,
   "lstm_units_enc" : 128,
