@@ -183,17 +183,22 @@ class CSeqGAN(BaseModel):
         # outsize = self.config.nframes_gen*self.config.sequence_width*self.config.or_angles*self.config.ang_classes
         # inputsize = self.config.lstm_units_gen
         # usually 256
-        
+
         with tf.variable_scope("output_network"):
             
             dense1=tf.layers.Dense(
-                units=2048,
+                units=1024,
                 activation=tf.nn.leaky_relu,
                 name="dense1",
             )
             dense2=tf.layers.Dense(
-                units=out_size,
+                units=4096,
+                activation=tf.nn.leaky_relu,
                 name="dense2",
+            )
+            dense3=tf.layers.Dense(
+                units=out_size,
+                name="dense3",
             )
 
             network=MultiLayer(
@@ -203,6 +208,7 @@ class CSeqGAN(BaseModel):
             )
             network.add_layer(dense1)
             network.add_layer(dense2)
+            network.add_layer(dense3)
 
             # set debug for the object
             # network.set_debug(True)
