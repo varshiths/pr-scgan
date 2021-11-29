@@ -1,6 +1,7 @@
 # seq-cgan  
 
 This is an effort to model sequences and learn translations, JSL from and to Japanese using adversarial methods.  
+This work was done as part of an internship at [HRI-JP](https://www.jp.honda-ri.com/en/index.html), in the summer of 2018. Report can be found [here](https://varshiths.github.io/res/HRIJP.pdf).
 
 The current data available is  
 - Gloss Annotations of sentences in Japanese  
